@@ -1,5 +1,5 @@
 import type { Response } from "express";
-import type { IAppBrowserSession } from "../session/AppSession";
+import type { IAppBrowserSession, IAuthenticatedUserSession } from "../session/AppSession";
 import type { ILoggingService } from "../service/LoggingService";
 import {
   EVENT_CATEGORIES,
@@ -9,7 +9,7 @@ import {
   type ResolvedEventFilters,
 } from "./Event";
 import type { EventError } from "./errors";
-import type { EventListResult, IEventService } from "./EventService";
+import type { EventActor, EventDetailResult, EventListResult, IEventService } from "./EventService";
 
 interface EventListViewModel {
   id: string;
@@ -23,11 +23,36 @@ interface EventListViewModel {
   capacityLabel: string;
 }
 
+interface EventDetailViewModel extends EventListViewModel {
+  organizerId: string;
+  canPublish: boolean;
+  canCancel: boolean;
+}
+
 export interface IEventController {
   showEventList(
     res: Response,
     session: IAppBrowserSession,
     query: { category?: string; timeframe?: string },
+  ): Promise<void>;
+  showEventDetail(
+    res: Response,
+    session: IAppBrowserSession,
+    eventId: string,
+    actor: IAuthenticatedUserSession,
+    pageError?: string | null,
+  ): Promise<void>;
+  publishFromForm(
+    res: Response,
+    session: IAppBrowserSession,
+    eventId: string,
+    actor: IAuthenticatedUserSession,
+  ): Promise<void>;
+  cancelFromForm(
+    res: Response,
+    session: IAppBrowserSession,
+    eventId: string,
+    actor: IAuthenticatedUserSession,
   ): Promise<void>;
 }
 
@@ -37,8 +62,15 @@ class EventController implements IEventController {
     private readonly logger: ILoggingService,
   ) {}
 
+  private toActor(user: IAuthenticatedUserSession): EventActor {
+    return { userId: user.userId, role: user.role };
+  }
+
   private mapErrorStatus(error: EventError): number {
     if (error.name === "InvalidFilter") return 400;
+    if (error.name === "EventNotFound") return 404;
+    if (error.name === "UnauthorizedEventAction") return 403;
+    if (error.name === "InvalidEventTransition") return 409;
     return 500;
   }
 
@@ -70,6 +102,15 @@ class EventController implements IEventController {
     };
   }
 
+  private toEventDetailViewModel(detail: EventDetailResult): EventDetailViewModel {
+    return {
+      ...this.toEventCardViewModel(detail.event),
+      organizerId: detail.event.organizerId,
+      canPublish: detail.permissions.canPublish,
+      canCancel: detail.permissions.canCancel,
+    };
+  }
+
   private async renderListPage(
     res: Response,
     session: IAppBrowserSession,
@@ -92,6 +133,20 @@ class EventController implements IEventController {
     });
   }
 
+  private async renderDetailPage(
+    res: Response,
+    session: IAppBrowserSession,
+    detailResult: EventDetailResult | null,
+    pageError: string | null,
+    status: number,
+  ): Promise<void> {
+    res.status(status).render("events/detail", {
+      pageError,
+      session,
+      event: detailResult ? this.toEventDetailViewModel(detailResult) : null,
+    });
+  }
+
   async showEventList(
     res: Response,
     session: IAppBrowserSession,
@@ -108,6 +163,78 @@ class EventController implements IEventController {
     }
 
     await this.renderListPage(res, session, result.value, null, 200);
+  }
+
+  async showEventDetail(
+    res: Response,
+    session: IAppBrowserSession,
+    eventId: string,
+    actor: IAuthenticatedUserSession,
+    pageError: string | null = null,
+  ): Promise<void> {
+    const result = await this.service.getEventDetail(eventId, this.toActor(actor));
+
+    if (result.ok === false) {
+      const status = this.mapErrorStatus(result.value);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `Show event detail failed: ${result.value.message}`);
+      await this.renderDetailPage(res, session, null, pageError ?? result.value.message, status);
+      return;
+    }
+
+    await this.renderDetailPage(res, session, result.value, pageError, 200);
+  }
+
+  async publishFromForm(
+    res: Response,
+    session: IAppBrowserSession,
+    eventId: string,
+    actor: IAuthenticatedUserSession,
+  ): Promise<void> {
+    const result = await this.service.publishEvent(eventId, this.toActor(actor));
+
+    if (result.ok === false) {
+      const status = this.mapErrorStatus(result.value);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `Publish event failed: ${result.value.message}`);
+      const detailResult = await this.service.getEventDetail(eventId, this.toActor(actor));
+      if (detailResult.ok === true) {
+        await this.renderDetailPage(res, session, detailResult.value, result.value.message, status);
+        return;
+      }
+
+      await this.renderDetailPage(res, session, null, result.value.message, status);
+      return;
+    }
+
+    this.logger.info(`Published event ${eventId}`);
+    res.redirect(`/events/${eventId}`);
+  }
+
+  async cancelFromForm(
+    res: Response,
+    session: IAppBrowserSession,
+    eventId: string,
+    actor: IAuthenticatedUserSession,
+  ): Promise<void> {
+    const result = await this.service.cancelEvent(eventId, this.toActor(actor));
+
+    if (result.ok === false) {
+      const status = this.mapErrorStatus(result.value);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `Cancel event failed: ${result.value.message}`);
+      const detailResult = await this.service.getEventDetail(eventId, this.toActor(actor));
+      if (detailResult.ok === true) {
+        await this.renderDetailPage(res, session, detailResult.value, result.value.message, status);
+        return;
+      }
+
+      await this.renderDetailPage(res, session, null, result.value.message, status);
+      return;
+    }
+
+    this.logger.info(`Cancelled event ${eventId}`);
+    res.redirect(`/events/${eventId}`);
   }
 }
 
