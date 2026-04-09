@@ -1,0 +1,91 @@
+<section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400 mb-2">Event details</p>
+      <h1 class="text-3xl font-bold text-slate-900 mb-2">Local Event Board</h1>
+      <p class="text-slate-500 mb-0">Review one event and manage its publishing lifecycle.</p>
+    </div>
+
+    <a
+      href="/events"
+      class="inline-flex items-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+    >
+      Back to events
+    </a>
+  </div>
+</section>
+
+<% if (pageError) { %>
+  <%- include("../partials/error", { message: pageError }) %>
+<% } %>
+
+<% if (!event) { %>
+  <section class="p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
+    <h2 class="text-xl font-semibold text-slate-900 mb-2">Event unavailable</h2>
+    <p class="text-slate-500 mb-0">The requested event could not be displayed.</p>
+  </section>
+<% } else { %>
+  <article class="p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
+    <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400 mb-2"><%= event.categoryLabel %></p>
+        <h2 class="text-3xl font-semibold text-slate-900 mb-1"><%= event.title %></h2>
+        <p class="text-slate-500 mb-0"><%= event.location %></p>
+      </div>
+
+      <%- include("partials/status-badge", { status: event.status }) %>
+    </div>
+
+    <p class="text-slate-600 mb-5"><%= event.description %></p>
+
+    <dl class="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm mb-6">
+      <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <dt class="text-slate-400 uppercase tracking-wide text-xs mb-1">Starts</dt>
+        <dd class="text-slate-700 font-medium"><%= event.startDisplay %></dd>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <dt class="text-slate-400 uppercase tracking-wide text-xs mb-1">Ends</dt>
+        <dd class="text-slate-700 font-medium"><%= event.endDisplay %></dd>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <dt class="text-slate-400 uppercase tracking-wide text-xs mb-1">Capacity</dt>
+        <dd class="text-slate-700 font-medium"><%= event.capacityLabel %></dd>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <dt class="text-slate-400 uppercase tracking-wide text-xs mb-1">Organizer</dt>
+        <dd class="text-slate-700 font-medium"><%= event.organizerId %></dd>
+      </div>
+    </dl>
+
+    <% if (event.canPublish || event.canCancel) { %>
+      <section class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+        <h3 class="text-lg font-semibold text-slate-900 mb-2">Manage event</h3>
+        <p class="text-sm text-slate-500 mb-4">Available actions depend on the event status and your permissions.</p>
+
+        <div class="flex flex-wrap gap-3">
+          <% if (event.canPublish) { %>
+            <form method="post" action="/events/<%= event.id %>/publish">
+              <button
+                type="submit"
+                class="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              >
+                Publish event
+              </button>
+            </form>
+          <% } %>
+
+          <% if (event.canCancel) { %>
+            <form method="post" action="/events/<%= event.id %>/cancel">
+              <button
+                type="submit"
+                class="inline-flex items-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+              >
+                Cancel event
+              </button>
+            </form>
+          <% } %>
+        </div>
+      </section>
+    <% } %>
+  </article>
+<% } %>
