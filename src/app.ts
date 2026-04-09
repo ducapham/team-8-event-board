@@ -3,6 +3,7 @@ import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
 import Layouts from "express-ejs-layouts";
 import { IAuthController } from "./auth/AuthController";
+import { IEventController } from "./events/EventController";
 import {
   AuthenticationRequired,
   AuthorizationRequired,
@@ -35,6 +36,7 @@ class ExpressApp implements IApp {
 
   constructor(
     private readonly authController: IAuthController,
+    private readonly eventController: IEventController,
     private readonly logger: ILoggingService,
   ) {
     this.app = express();
@@ -237,6 +239,21 @@ class ExpressApp implements IApp {
       }),
     );
 
+    this.app.get(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showEventList(res, browserSession, {
+          category: typeof req.query.category === "string" ? req.query.category : undefined,
+          timeframe: typeof req.query.timeframe === "string" ? req.query.timeframe : undefined,
+        });
+      }),
+    );
+
     // ── Authenticated home page ──────────────────────────────────────
     // TODO: Replace this placeholder with your project's main page.
 
@@ -272,7 +289,8 @@ class ExpressApp implements IApp {
 
 export function CreateApp(
   authController: IAuthController,
+  eventController: IEventController,
   logger: ILoggingService,
 ): IApp {
-  return new ExpressApp(authController, logger);
+  return new ExpressApp(authController, eventController, logger);
 }
