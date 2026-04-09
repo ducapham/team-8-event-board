@@ -1,4 +1,5 @@
 import { Err, Ok, type Result } from "../lib/result";
+import type { UserRole } from "../auth/User";
 import {
   EVENT_CATEGORIES,
   EVENT_TIMEFRAMES,
@@ -8,10 +9,28 @@ import {
   type EventListInput,
   type EventTimeframe,
   type IEvent,
+  type IEventRecord,
   type ResolvedEventFilters,
 } from "./Event";
 import type { IEventRepository } from "./EventRepository";
-import { InvalidFilter, UnexpectedDependencyError, type EventError } from "./errors";
+import {
+  EventNotFound,
+  InvalidEventTransition,
+  InvalidFilter,
+  UnauthorizedEventAction,
+  UnexpectedDependencyError,
+  type EventError,
+} from "./errors";
+
+export interface EventActor {
+  userId: string;
+  role: UserRole;
+}
+
+export interface EventPermissions {
+  canPublish: boolean;
+  canCancel: boolean;
+}
 
 export interface EventListResult {
   events: IEvent[];
@@ -20,11 +39,31 @@ export interface EventListResult {
   availableTimeframes: readonly string[];
 }
 
+export interface EventDetailResult {
+  event: IEvent;
+  permissions: EventPermissions;
+}
+
 export interface IEventService {
   listPublishedEvents(
     input: EventListInput,
     now?: Date,
   ): Promise<Result<EventListResult, EventError>>;
+  getEventDetail(
+    eventId: string,
+    actor: EventActor,
+    now?: Date,
+  ): Promise<Result<EventDetailResult, EventError>>;
+  publishEvent(
+    eventId: string,
+    actor: EventActor,
+    now?: Date,
+  ): Promise<Result<EventDetailResult, EventError>>;
+  cancelEvent(
+    eventId: string,
+    actor: EventActor,
+    now?: Date,
+  ): Promise<Result<EventDetailResult, EventError>>;
 }
 
 function startOfDay(value: Date): Date {
@@ -44,6 +83,24 @@ function startOfWeek(value: Date): Date {
   const daysSinceMonday = (nextValue.getDay() + 6) % 7;
   nextValue.setDate(nextValue.getDate() - daysSinceMonday);
   return nextValue;
+}
+
+function isAdmin(actor: EventActor): boolean {
+  return actor.role === "admin";
+}
+
+function isOwner(event: IEventRecord, actor: EventActor): boolean {
+  return event.organizerId === actor.userId;
+}
+
+function buildPermissions(event: IEventRecord, actor: EventActor, now: Date): EventPermissions {
+  const readableEvent = toEvent(event, now);
+  const canManage = isAdmin(actor) || isOwner(event, actor);
+
+  return {
+    canPublish: canManage && readableEvent.status === "draft",
+    canCancel: canManage && readableEvent.status === "published",
+  };
 }
 
 function normalizeFilters(input: EventListInput): Result<ResolvedEventFilters, EventError> {
@@ -116,6 +173,112 @@ class EventService implements IEventService {
       filters,
       availableCategories: EVENT_CATEGORIES,
       availableTimeframes: EVENT_TIMEFRAMES,
+    });
+  }
+
+  async getEventDetail(
+    eventId: string,
+    actor: EventActor,
+    now: Date = new Date(),
+  ): Promise<Result<EventDetailResult, EventError>> {
+    const eventResult = await this.events.findById(eventId);
+    if (eventResult.ok === false) {
+      return Err(UnexpectedDependencyError(eventResult.value.message));
+    }
+
+    if (!eventResult.value) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    const readableEvent = toEvent(eventResult.value, now);
+    const visibleToAll = readableEvent.status === "published" || readableEvent.status === "past";
+    if (!visibleToAll && !isAdmin(actor) && !isOwner(eventResult.value, actor)) {
+      return Err(UnauthorizedEventAction("You do not have access to this event."));
+    }
+
+    return Ok({
+      event: readableEvent,
+      permissions: buildPermissions(eventResult.value, actor, now),
+    });
+  }
+
+  async publishEvent(
+    eventId: string,
+    actor: EventActor,
+    now: Date = new Date(),
+  ): Promise<Result<EventDetailResult, EventError>> {
+    const eventResult = await this.events.findById(eventId);
+    if (eventResult.ok === false) {
+      return Err(UnexpectedDependencyError(eventResult.value.message));
+    }
+
+    if (!eventResult.value) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    const currentEvent = eventResult.value;
+    if (!isAdmin(actor) && !isOwner(currentEvent, actor)) {
+      return Err(UnauthorizedEventAction("Only the organizer or an admin can publish this event."));
+    }
+
+    if (toEvent(currentEvent, now).status !== "draft") {
+      return Err(InvalidEventTransition("Only draft events can be published."));
+    }
+
+    const updatedEvent: IEventRecord = {
+      ...currentEvent,
+      status: "published",
+      updatedAt: new Date(now.getTime()),
+    };
+    const saveResult = await this.events.save(updatedEvent);
+
+    if (saveResult.ok === false) {
+      return Err(UnexpectedDependencyError(saveResult.value.message));
+    }
+
+    return Ok({
+      event: toEvent(saveResult.value, now),
+      permissions: buildPermissions(saveResult.value, actor, now),
+    });
+  }
+
+  async cancelEvent(
+    eventId: string,
+    actor: EventActor,
+    now: Date = new Date(),
+  ): Promise<Result<EventDetailResult, EventError>> {
+    const eventResult = await this.events.findById(eventId);
+    if (eventResult.ok === false) {
+      return Err(UnexpectedDependencyError(eventResult.value.message));
+    }
+
+    if (!eventResult.value) {
+      return Err(EventNotFound("Event not found."));
+    }
+
+    const currentEvent = eventResult.value;
+    if (!isAdmin(actor) && !isOwner(currentEvent, actor)) {
+      return Err(UnauthorizedEventAction("Only the organizer or an admin can cancel this event."));
+    }
+
+    if (toEvent(currentEvent, now).status !== "published") {
+      return Err(InvalidEventTransition("Only published events can be cancelled."));
+    }
+
+    const updatedEvent: IEventRecord = {
+      ...currentEvent,
+      status: "cancelled",
+      updatedAt: new Date(now.getTime()),
+    };
+    const saveResult = await this.events.save(updatedEvent);
+
+    if (saveResult.ok === false) {
+      return Err(UnexpectedDependencyError(saveResult.value.message));
+    }
+
+    return Ok({
+      event: toEvent(saveResult.value, now),
+      permissions: buildPermissions(saveResult.value, actor, now),
     });
   }
 }
