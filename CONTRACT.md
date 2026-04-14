@@ -1,7 +1,3 @@
-## GetCurrentStatus(UserID):Result<Status, GetStatusError>
-Success Example: {ok: true, value: Attending}
-Failing Example: {ok:false, error: new InvalidStatusError("Status invalid")}
-
 ## Toggle(UserID, EventID):Result<Status, RVSPError>
 Success Example: {ok:true, value:Waitlist}
 Failing Example: {ok:false, error: new InvalidUserError("User doesn't exist for event cancelling")}

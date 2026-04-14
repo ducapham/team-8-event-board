@@ -10,6 +10,9 @@ import type { ILoggingService } from "./service/LoggingService";
 import { EventService } from "./event/EventService";
 import { EventController } from "./event/EventController";
 import { InMemoryEventRepository } from "./event/InMemoryEventRepository";
+import { CreateEventController } from "./controller/EventController";
+import { CreateEventService } from "./service/EventService";
+import { CreateInMemoryEventRepository } from "./repository/InMemoryEventRepository";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
@@ -21,10 +24,10 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-  // Event wiring
-  const eventRepository = new InMemoryEventRepository();
-  const eventService = new EventService(eventRepository);
-  const eventController = new EventController(eventService);
+  // Event management wiring
+  const events = CreateInMemoryEventRepository();
+  const eventService = CreateEventService(events);
+  const eventController = CreateEventController(eventService, resolvedLogger);
 
-  return CreateApp(authController, resolvedLogger, eventController);
+  return CreateApp(authController, eventController, resolvedLogger);
 }
