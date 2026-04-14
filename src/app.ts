@@ -3,6 +3,7 @@ import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
 import Layouts from "express-ejs-layouts";
 import { IAuthController } from "./auth/AuthController";
+import { IEventController } from "./events/EventController";
 import {
   AuthenticationRequired,
   AuthorizationRequired,
@@ -235,6 +236,97 @@ class ExpressApp implements IApp {
           typeof req.params.id === "string" ? req.params.id : "",
           currentUser.userId,
           session,
+        );
+      }),
+    );
+
+    this.app.get(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showEventList(res, browserSession, {
+          category: typeof req.query.category === "string" ? req.query.category : undefined,
+          timeframe: typeof req.query.timeframe === "string" ? req.query.timeframe : undefined,
+        });
+      }),
+    );
+
+    this.app.get(
+      "/events/:id",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.").message,
+            layout: false,
+          });
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showEventDetail(
+          res,
+          browserSession,
+          typeof req.params.id === "string" ? req.params.id : "",
+          currentUser,
+        );
+      }),
+    );
+
+    this.app.post(
+      "/events/:id/publish",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.").message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.publishFromForm(
+          res,
+          touchAppSession(sessionStore(req)),
+          typeof req.params.id === "string" ? req.params.id : "",
+          currentUser,
+        );
+      }),
+    );
+
+    this.app.post(
+      "/events/:id/cancel",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.").message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.cancelFromForm(
+          res,
+          touchAppSession(sessionStore(req)),
+          typeof req.params.id === "string" ? req.params.id : "",
+          currentUser,
         );
       }),
     );

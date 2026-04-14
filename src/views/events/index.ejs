@@ -1,0 +1,56 @@
+<section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
+  <h1 class="text-3xl font-bold text-slate-900 mb-3">Local Event Board</h1>
+  <p class="text-slate-500">
+    Browse upcoming published events and narrow the board by category or timeframe.
+  </p>
+</section>
+
+<% if (pageError) { %>
+  <%- include("../partials/error", { message: pageError }) %>
+<% } %>
+
+<%- include("partials/filter-form", {
+  categories,
+  timeframes,
+  filters,
+}) %>
+
+<section class="grid gap-4 mt-5">
+  <% if (events.length === 0) { %>
+    <section class="p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
+      <h2 class="text-xl font-semibold text-slate-900 mb-2">No matching events</h2>
+      <p class="text-slate-500 mb-0">Try a different category or timeframe.</p>
+    </section>
+  <% } %>
+
+  <% events.forEach((event) => { %>
+    <article class="p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
+      <div class="flex items-start justify-between gap-4 flex-wrap mb-3">
+        <div>
+          <p class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400 mb-2"><%= event.categoryLabel %></p>
+          <h2 class="text-2xl font-semibold text-slate-900 mb-1"><%= event.title %></h2>
+          <p class="text-slate-500 mb-0"><%= event.location %></p>
+        </div>
+
+        <%- include("partials/status-badge", { status: event.status }) %>
+      </div>
+
+      <p class="text-slate-600 mb-4"><%= event.description %></p>
+
+      <dl class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <dt class="text-slate-400 uppercase tracking-wide text-xs mb-1">Starts</dt>
+          <dd class="text-slate-700 font-medium"><%= event.startDisplay %></dd>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <dt class="text-slate-400 uppercase tracking-wide text-xs mb-1">Ends</dt>
+          <dd class="text-slate-700 font-medium"><%= event.endDisplay %></dd>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <dt class="text-slate-400 uppercase tracking-wide text-xs mb-1">Capacity</dt>
+          <dd class="text-slate-700 font-medium"><%= event.capacityLabel %></dd>
+        </div>
+      </dl>
+    </article>
+  <% }) %>
+</section>
