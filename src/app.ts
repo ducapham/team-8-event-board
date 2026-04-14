@@ -9,6 +9,7 @@ import {
   AuthorizationRequired,
 } from "./auth/errors";
 import type { UserRole } from "./auth/User";
+import type { IEventController } from "./controller/EventController";
 import { IApp } from "./contracts";
 import {
   getAuthenticatedUser,
@@ -345,7 +346,53 @@ class ExpressApp implements IApp {
         res.render("home", { session: browserSession, pageError: null });
       }),
     );
+    this.app.get(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
 
+        const browserSession = recordPageView(sessionStore(req));
+        this.logger.info(`GET /events for ${browserSession.browserLabel}`);
+        await this.eventController.showEvents(res, browserSession);
+      }),
+    );
+
+    this.app.post(
+      "/events/:id/toggle",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = touchAppSession(sessionStore(req));
+        const id = Number(req.params.id);
+        if (Number.isNaN(id)) {
+          res.status(400).render("partials/error", {
+            message: "Invalid event id.",
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.toggleFromForm(res, id, browserSession);
+      }),
+    );
+
+    this.app.get(
+      "/events/search",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        const query = typeof req.query.query === "string" ? req.query.query : "";
+        this.logger.info(`GET /events/search for ${browserSession.browserLabel}`);
+        await this.eventController.searchFromHtmx(res, query, browserSession);
+      }),
+    );
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -356,6 +403,31 @@ class ExpressApp implements IApp {
         layout: false,
       });
     });
+
+    // ── Event routes ─────────────────────────────
+
+    this.app.get(
+      "/events/new",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        this.eventController.renderCreateForm(req, res);
+      }),
+    );
+
+    this.app.post(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        await this.eventController.createEvent(req, res);
+      }),
+    );
+
+    this.app.get(
+      "/events/:id",
+      asyncHandler(async (req, res) => {
+        await this.eventController.getEventDetail(req, res);
+      }),
+    );
   }
 
   getExpressApp(): express.Express {

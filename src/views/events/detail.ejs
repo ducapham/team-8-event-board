@@ -1,0 +1,54 @@
+<div class="max-w-3xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+    <div class="flex items-start justify-between gap-4 mb-6">
+      <div>
+        <p class="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-2">
+          Event Detail
+        </p>
+        <h1 class="text-3xl font-bold text-slate-900"><%= event.title %></h1>
+      </div>
+      <span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+        <%= event.status %>
+      </span>
+    </div>
+  
+    <div class="space-y-4 text-slate-700">
+      <div>
+        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Description</h2>
+        <p><%= event.description %></p>
+      </div>
+  
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Location</h2>
+          <p><%= event.location %></p>
+        </div>
+  
+        <div>
+          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Category</h2>
+          <p><%= event.category %></p>
+        </div>
+  
+        <div>
+          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Start Time</h2>
+          <p><%= event.startDatetime.toString() %></p>
+        </div>
+  
+        <div>
+          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">End Time</h2>
+          <p><%= event.endDatetime.toString() %></p>
+        </div>
+  
+        <% if (event.capacity !== undefined) { %>
+          <div>
+            <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Capacity</h2>
+            <p><%= event.capacity %></p>
+          </div>
+        <% } %>
+  
+        <div>
+          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Organizer ID</h2>
+          <p><%= event.organizerId %></p>
+        </div>
+      </div>
+    </div>
+  </div>
