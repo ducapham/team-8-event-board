@@ -3,7 +3,6 @@ import express, { Request, RequestHandler, Response } from "express";
 import session from "express-session";
 import Layouts from "express-ejs-layouts";
 import { IAuthController } from "./auth/AuthController";
-import { IEventController } from "./events/EventController";
 import {
   AuthenticationRequired,
   AuthorizationRequired,
@@ -251,7 +250,30 @@ class ExpressApp implements IApp {
         await this.eventController.showEventList(res, browserSession, {
           category: typeof req.query.category === "string" ? req.query.category : undefined,
           timeframe: typeof req.query.timeframe === "string" ? req.query.timeframe : undefined,
+          query: typeof req.query.query === "string" ? req.query.query : undefined,
         });
+      }),
+    );
+
+    this.app.get(
+      "/events/search",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        const query = typeof req.query.query === "string" ? req.query.query : "";
+        this.logger.info(`GET /events/search for ${browserSession.browserLabel}`);
+        await this.eventController.searchFromHtmx(res, query, browserSession);
+      }),
+    );
+
+    this.app.get(
+      "/events/new",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        this.eventController.renderCreateForm(req, res);
       }),
     );
 
@@ -346,19 +368,6 @@ class ExpressApp implements IApp {
         res.render("home", { session: browserSession, pageError: null });
       }),
     );
-    this.app.get(
-      "/events",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const browserSession = recordPageView(sessionStore(req));
-        this.logger.info(`GET /events for ${browserSession.browserLabel}`);
-        await this.eventController.showEvents(res, browserSession);
-      }),
-    );
-
     this.app.post(
       "/events/:id/toggle",
       asyncHandler(async (req, res) => {
@@ -380,19 +389,6 @@ class ExpressApp implements IApp {
       }),
     );
 
-    this.app.get(
-      "/events/search",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const browserSession = recordPageView(sessionStore(req));
-        const query = typeof req.query.query === "string" ? req.query.query : "";
-        this.logger.info(`GET /events/search for ${browserSession.browserLabel}`);
-        await this.eventController.searchFromHtmx(res, query, browserSession);
-      }),
-    );
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -406,14 +402,6 @@ class ExpressApp implements IApp {
 
     // ── Event routes ─────────────────────────────
 
-    this.app.get(
-      "/events/new",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return;
-        this.eventController.renderCreateForm(req, res);
-      }),
-    );
-
     this.app.post(
       "/events",
       asyncHandler(async (req, res) => {
@@ -422,12 +410,6 @@ class ExpressApp implements IApp {
       }),
     );
 
-    this.app.get(
-      "/events/:id",
-      asyncHandler(async (req, res) => {
-        await this.eventController.getEventDetail(req, res);
-      }),
-    );
   }
 
   getExpressApp(): express.Express {
