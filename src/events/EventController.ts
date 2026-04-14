@@ -9,7 +9,13 @@ import {
   type ResolvedEventFilters,
 } from "./Event";
 import type { EventError } from "./errors";
-import type { EventActor, EventDetailResult, EventListResult, IEventService } from "./EventService";
+import type {
+  CreateEventInput,
+  EventActor,
+  EventDetailResult,
+  EventListResult,
+  IEventService,
+} from "./EventService";
 
 interface EventListViewModel {
   id: string;
@@ -29,11 +35,28 @@ interface EventDetailViewModel extends EventListViewModel {
   canCancel: boolean;
 }
 
+interface EventCreateFormValues {
+  title: string;
+  description: string;
+  location: string;
+  category: string;
+  capacity: string;
+  startDatetime: string;
+  endDatetime: string;
+}
+
 export interface IEventController {
+  showCreateForm(res: Response, session: IAppBrowserSession): Promise<void>;
   showEventList(
     res: Response,
     session: IAppBrowserSession,
     query: { category?: string; timeframe?: string },
+  ): Promise<void>;
+  createFromForm(
+    res: Response,
+    session: IAppBrowserSession,
+    input: EventCreateFormValues,
+    actor: IAuthenticatedUserSession,
   ): Promise<void>;
   showEventDetail(
     res: Response,
@@ -67,6 +90,7 @@ class EventController implements IEventController {
   }
 
   private mapErrorStatus(error: EventError): number {
+    if (error.name === "InvalidEventInput") return 400;
     if (error.name === "InvalidFilter") return 400;
     if (error.name === "EventNotFound") return 404;
     if (error.name === "UnauthorizedEventAction") return 403;
@@ -86,6 +110,18 @@ class EventController implements IEventController {
       .split("-")
       .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
       .join(" ");
+  }
+
+  private emptyCreateForm(): EventCreateFormValues {
+    return {
+      title: "",
+      description: "",
+      location: "",
+      category: "",
+      capacity: "",
+      startDatetime: "",
+      endDatetime: "",
+    };
   }
 
   private toEventCardViewModel(event: IEvent): EventListViewModel {
@@ -133,6 +169,21 @@ class EventController implements IEventController {
     });
   }
 
+  private async renderCreatePage(
+    res: Response,
+    session: IAppBrowserSession,
+    form: EventCreateFormValues,
+    pageError: string | null,
+    status: number,
+  ): Promise<void> {
+    res.status(status).render("events/new", {
+      pageError,
+      session,
+      categories: EVENT_CATEGORIES,
+      form,
+    });
+  }
+
   private async renderDetailPage(
     res: Response,
     session: IAppBrowserSession,
@@ -145,6 +196,30 @@ class EventController implements IEventController {
       session,
       event: detailResult ? this.toEventDetailViewModel(detailResult) : null,
     });
+  }
+
+  async showCreateForm(res: Response, session: IAppBrowserSession): Promise<void> {
+    await this.renderCreatePage(res, session, this.emptyCreateForm(), null, 200);
+  }
+
+  async createFromForm(
+    res: Response,
+    session: IAppBrowserSession,
+    input: EventCreateFormValues,
+    actor: IAuthenticatedUserSession,
+  ): Promise<void> {
+    const result = await this.service.createEvent(input as CreateEventInput, this.toActor(actor));
+
+    if (result.ok === false) {
+      const status = this.mapErrorStatus(result.value);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `Create event failed: ${result.value.message}`);
+      await this.renderCreatePage(res, session, input, result.value.message, status);
+      return;
+    }
+
+    this.logger.info(`Created event ${result.value.event.id}`);
+    res.redirect(`/events/${result.value.event.id}`);
   }
 
   async showEventList(

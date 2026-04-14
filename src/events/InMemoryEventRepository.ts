@@ -111,6 +111,16 @@ function buildSeedEvents(now: Date = new Date()): IEventRecord[] {
 class InMemoryEventRepository implements IEventRepository {
   constructor(private readonly events: IEventRecord[]) {}
 
+  async create(event: IEventRecord): Promise<Result<IEventRecord, EventError>> {
+    try {
+      const nextEvent = cloneEventRecord(event);
+      this.events.push(nextEvent);
+      return Ok(cloneEventRecord(nextEvent));
+    } catch {
+      return Err(UnexpectedDependencyError("Unable to create the event."));
+    }
+  }
+
   async listEvents(): Promise<Result<IEventRecord[], EventError>> {
     try {
       return Ok(this.events.map(cloneEventRecord));

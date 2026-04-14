@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Err, Ok, type Result } from "../lib/result";
 import type { UserRole } from "../auth/User";
 import {
@@ -15,6 +16,7 @@ import {
 import type { IEventRepository } from "./EventRepository";
 import {
   EventNotFound,
+  InvalidEventInput,
   InvalidEventTransition,
   InvalidFilter,
   UnauthorizedEventAction,
@@ -44,7 +46,22 @@ export interface EventDetailResult {
   permissions: EventPermissions;
 }
 
+export interface CreateEventInput {
+  title: string;
+  description: string;
+  location: string;
+  category: string;
+  capacity?: string;
+  startDatetime: string;
+  endDatetime: string;
+}
+
 export interface IEventService {
+  createEvent(
+    input: CreateEventInput,
+    actor: EventActor,
+    now?: Date,
+  ): Promise<Result<EventDetailResult, EventError>>;
   listPublishedEvents(
     input: EventListInput,
     now?: Date,
@@ -125,8 +142,90 @@ function normalizeFilters(input: EventListInput): Result<ResolvedEventFilters, E
   });
 }
 
+function normalizeCapacity(value: string | undefined): Result<number | null, EventError> {
+  const trimmedValue = value?.trim() ?? "";
+  if (!trimmedValue) {
+    return Ok(null);
+  }
+
+  const parsedCapacity = Number(trimmedValue);
+  if (!Number.isInteger(parsedCapacity) || parsedCapacity <= 0) {
+    return Err(InvalidEventInput("Capacity must be a positive whole number."));
+  }
+
+  return Ok(parsedCapacity);
+}
+
 class EventService implements IEventService {
   constructor(private readonly events: IEventRepository) {}
+
+  async createEvent(
+    input: CreateEventInput,
+    actor: EventActor,
+    now: Date = new Date(),
+  ): Promise<Result<EventDetailResult, EventError>> {
+    const title = input.title.trim();
+    const description = input.description.trim();
+    const location = input.location.trim();
+    const category = input.category.trim().toLowerCase();
+    const startAt = new Date(input.startDatetime);
+    const endAt = new Date(input.endDatetime);
+
+    if (!title) {
+      return Err(InvalidEventInput("Title is required."));
+    }
+
+    if (!description) {
+      return Err(InvalidEventInput("Description is required."));
+    }
+
+    if (!location) {
+      return Err(InvalidEventInput("Location is required."));
+    }
+
+    if (!isEventCategory(category)) {
+      return Err(InvalidEventInput("Category is invalid."));
+    }
+
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+      return Err(InvalidEventInput("Start and end times must be valid."));
+    }
+
+    if (endAt.getTime() <= startAt.getTime()) {
+      return Err(InvalidEventInput("End time must be after the start time."));
+    }
+
+    const capacityResult = normalizeCapacity(input.capacity);
+    if (capacityResult.ok === false) {
+      return capacityResult;
+    }
+
+    const createdAt = new Date(now.getTime());
+    const nextEvent: IEventRecord = {
+      id: randomUUID(),
+      title,
+      description,
+      location,
+      category,
+      capacity: capacityResult.value,
+      status: "draft",
+      startAt,
+      endAt,
+      organizerId: actor.userId,
+      createdAt,
+      updatedAt: createdAt,
+    };
+
+    const createResult = await this.events.create(nextEvent);
+    if (createResult.ok === false) {
+      return Err(UnexpectedDependencyError(createResult.value.message));
+    }
+
+    return Ok({
+      event: toEvent(createResult.value, now),
+      permissions: buildPermissions(createResult.value, actor, now),
+    });
+  }
 
   async listPublishedEvents(
     input: EventListInput,
