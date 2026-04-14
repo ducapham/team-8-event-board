@@ -1,14 +1,50 @@
-export type EventError = 
-    | { type: "UnexpectedDependencyError"; message: string }
-    | { type: "EventNotFoundError"; message: string }
-    | { type: "UserNotFoundError"; message: string }
-    | { type: "UnknownError"; message: string };
+export type EventError =
+  | EventNotFoundError
+  | UserNotFoundError
+  | UnknownError
+  | UnexpectedDependencyError;
 
-export const EventNotFoundError = (message: string): EventError =>
-    ({ type: "EventNotFoundError", message });
+export class EventNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EventNotFoundError";
+  }
+}
 
-export const UserNotFoundError = (message: string): EventError =>
-    ({ type: "UserNotFoundError", message });
+export class UserNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UserNotFoundError";
+  }
+}
 
-export const UnknownError = (message: string): EventError =>
-    ({ type: "UnknownError", message });
+export class UnknownError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnknownError";
+  }
+}
+
+export class UnexpectedDependencyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnexpectedDependencyError";
+  }
+}
+
+export class InvalidInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidInputError";
+  }
+}
+
+export class ForbiddenError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ForbiddenError";
+  }
+}
+
+export type CreateEventError = InvalidInputError;
+export type GetEventError = EventNotFoundError | ForbiddenError;

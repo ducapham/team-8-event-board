@@ -1,15 +1,19 @@
-import type { Response } from "express";
+import type { Response, Request } from "express";
 import type { IAppBrowserSession } from "../session/AppSession.js";
 import type { IEvent } from "../event.js";
 import type { EventError } from "../lib/errors.js";
 import type { IEventService } from "../service/EventService.js";
 import type { ILoggingService } from "../service/LoggingService.js";
 import type { Result } from "../lib/result.js";
+import { getAuthenticatedUser, touchAppSession } from "../session/AppSession";
 
 export interface IEventController {
   showEvents(res: Response, session: IAppBrowserSession, pageError?: string | null): Promise<void>;
   toggleFromForm(res: Response, eventId: number, session: IAppBrowserSession): Promise<void>;
   searchFromHtmx(res: Response, query: string, session: IAppBrowserSession): Promise<void>;
+  renderCreateForm(req: Request, res: Response): void;
+  createEvent(req: Request, res: Response): Promise<void>;
+  getEventDetail(req: Request, res: Response): Promise<void>;
 }
 
 class EventController implements IEventController {
@@ -23,8 +27,8 @@ class EventController implements IEventController {
   }
 
   private mapErrorStatus(error: EventError): number {
-    if (error.type === "EventNotFoundError") return 404;
-    if (error.type === "UserNotFoundError") return 404;
+    if (error.name === "EventNotFoundError") return 404;
+    if (error.name === "UserNotFoundError") return 404;
     return 500;
   }
 
@@ -92,6 +96,95 @@ class EventController implements IEventController {
       query,
     });
   }
+    renderCreateForm(req: Request, res: Response): void {
+      const browserSession = touchAppSession(req.session);
+    
+      res.render("events/new", {
+        session: browserSession,
+        pageError: null,
+      });
+    }
+  
+    async createEvent(req: Request, res: Response): Promise<void> {
+      const authenticatedUser = getAuthenticatedUser(req.session);
+      const organizerId = authenticatedUser?.userId;
+  
+      if (!organizerId) {
+          res.status(401).render("partials/error", {
+            message: "You must be logged in to create an event.",
+            layout: false,
+          });
+          return;
+        }
+  
+      const result = await this.service.createEvent(
+        {
+          title: req.body.title,
+          description: req.body.description,
+          location: req.body.location,
+          category: req.body.category,
+          capacity:
+            req.body.capacity && req.body.capacity.trim() !== ""
+              ? Number(req.body.capacity)
+              : undefined,
+          startDatetime: req.body.startDatetime,
+          endDatetime: req.body.endDatetime,
+        },
+        organizerId,
+      );
+  
+      if (result.ok === false) {
+          const err = result.value;
+          res.status(400).render("partials/error", {
+            message: err.message,
+            layout: false,
+          });
+          return;
+        }
+  
+      res.redirect(`/events/${result.value.id}`);
+    }
+  
+  async getEventDetail(req: Request, res: Response): Promise<void> {
+    const authenticatedUser = getAuthenticatedUser(req.session);
+    const viewerId = authenticatedUser?.userId;
+    const eventId = req.params.id as string;
+
+    const result = await this.service.getEventById(eventId, viewerId);
+
+    if (result.ok === false) {
+        const err = result.value;
+      
+        if (err.name === "EventNotFoundError") {
+          res.status(404).render("partials/error", {
+            message: err.message,
+            layout: false,
+          });
+          return;
+        }
+      
+        if (err.name === "ForbiddenError") {
+          res.status(403).render("partials/error", {
+            message: err.message,
+            layout: false,
+          });
+          return;
+        }
+      
+        res.status(400).render("partials/error", {
+          message: err.message,
+          layout: false,
+        });
+        return;
+      }
+      
+    const browserSession = touchAppSession(req.session);
+    res.render("events/detail", {
+      event: result.value,
+      session: browserSession,
+      pageError: null,
+    });
+    }
 }
 
 export function CreateEventController(

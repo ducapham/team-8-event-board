@@ -13,11 +13,16 @@ const DEMO_EVENTS: IEvent[] = [
     location: "Riverside Park",
     category: "Social",
     date: new Date("2026-06-05"),
-    time: "11:00 AM",
-    organizerID: 1,
+    time: "12:00 - 14:00",
+    startDatetime: new Date("2026-06-05T12:00:00"),
+    endDatetime: new Date("2026-06-05T14:00:00"),
+    organizerId: "user-admin",
     attendees: [],
     waitlist: [],
     capacity: 50,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    status: "published",
   },
   {
     id: 2,
@@ -26,13 +31,20 @@ const DEMO_EVENTS: IEvent[] = [
     location: "Innovation Hub",
     category: "Business",
     date: new Date("2026-06-20"),
-    time: "6:30 PM",
-    organizerID: 2,
+    time: "18:30 - 20:30",
+    startDatetime: new Date("2026-06-20T18:30:00"),
+    endDatetime: new Date("2026-06-20T20:30:00"),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    status: "published",
+    organizerId: "user-staff",
     attendees: [],
     waitlist: [],
     capacity: 30,
   },
 ];
+
+type RSVPStatus = "Registered" | "Waitlisted" | "Not Registered";
 
 class InMemoryEventRepository implements IEventRepository {
   constructor(private events: IEvent[], private users: IUserRecord[], private summary:IEventSummary[]) {}
@@ -40,20 +52,24 @@ class InMemoryEventRepository implements IEventRepository {
   async toggleRVSP(eventId: number, userId: string): Promise<Result<string, EventError>> {
     const event = this.events.find((e) => e.id === eventId);
     if (!event) {
-      return Err(EventNotFoundError(`Event with ID ${eventId} not found`));
+      return Err(new EventNotFoundError(`Event with ID ${eventId} not found`));
     }
     const user = this.users.find((u) => u.id === userId);
     if (!user) {
-      return Err(UserNotFoundError(`User with ID ${userId} not found`));
+      return Err(new UserNotFoundError(`User with ID ${userId} not found`));
     }
-    const status = this.summary.find((s) => s.Event.id === eventId && s.User.id === userId)?.status || "Not Registered";
-    if (status === "Not Registered" && event.capacity > event.attendees.length) {
+
+    const existingSummary = this.summary.find((s) => s.Event.id === eventId && s.User.id === userId);
+    const status: RSVPStatus = existingSummary?.status ?? "Not Registered";
+    const capacity = event.capacity ?? 0;
+
+    if (status === "Not Registered" && capacity > event.attendees.length) {
       event.attendees.push(user);
-      this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Registered", Event: event, User: user });
+      this.summary.push({ id: this.summary.length + 1, date: event.date, time: "", status: "Registered", Event: event, User: user });
     }
-    else if (status === "Not Registered" && event.capacity === event.attendees.length) {
+    else if (status === "Not Registered") {
       event.waitlist.push(user);
-      this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Waitlisted", Event: event, User: user });
+      this.summary.push({ id: this.summary.length + 1, date: event.date, time: "", status: "Waitlisted", Event: event, User: user });
     }
     else if (status === "Registered") {
       event.attendees = event.attendees.filter((u) => u.id !== userId);
@@ -62,7 +78,8 @@ class InMemoryEventRepository implements IEventRepository {
         const nextUser = event.waitlist.shift();
         if (nextUser) {
           event.attendees.push(nextUser);
-          this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Registered", Event: event, User: nextUser });
+          this.summary = this.summary.filter((s) => !(s.Event.id === eventId && s.User.id === nextUser.id));
+          this.summary.push({ id: this.summary.length + 1, date: event.date, time: "", status: "Registered", Event: event, User: nextUser });
         }
       }
     }
@@ -80,6 +97,15 @@ class InMemoryEventRepository implements IEventRepository {
       e.location.toLowerCase().includes(normalized)
     );
     return results;
+  }
+
+  async create(event: IEvent): Promise<IEvent> {
+      this.events.push(event);
+      return event;
+    }
+  
+  async findById(id: number): Promise<IEvent | null> {
+    return this.events.find((e) => e.id === id) ?? null;
   }
 }
 

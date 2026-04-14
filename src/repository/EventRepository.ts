@@ -15,5 +15,7 @@ export type CreateEvent = {
 export interface IEventRepository {
   toggleRVSP(eventId: number, userId: string): Promise<Result<string, EventError>> ;
   searchEvents(query: string): Promise<IEvent[]>;
+  create(event: IEvent): Promise<IEvent>;
+  findById(id: number): Promise<IEvent | null>;
 }
 

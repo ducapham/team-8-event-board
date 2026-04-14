@@ -1,5 +1,7 @@
 import type { IUserRecord } from "./auth/User.js";
 
+export type EventStatus = "draft" | "published" | "cancelled" | "past";
+
 export interface IEvent{
     id: number;
     title: string;
@@ -8,10 +10,15 @@ export interface IEvent{
     category: string;
     date: Date;
     time: string;
-    organizerID: number;
+    organizerId: string;
+    startDatetime: Date;
+    endDatetime: Date;  
     attendees: IUserRecord[];
     waitlist: IUserRecord[];
-    capacity: number;
+    capacity?: number;
+    createdAt: Date;
+    updatedAt: Date;
+    status: EventStatus;
 }
 
 export interface IEventSummary {
