@@ -6,8 +6,14 @@ export interface IEventRepository {
   listEvents(): Promise<Result<IEvent[], EventError>>;
   findById(id: number): Promise<Result<IEvent | null, EventError>>;
   save(event: IEvent): Promise<Result<IEvent, EventError>>;
+
+  // Feature 4 — RSVP Toggle (Long)
   toggleRVSP(eventId: number, userId: string): Promise<Result<string, EventError>>;
+
+  // Feature 10 — Event Search (Long)
   searchEvents(query: string): Promise<IEvent[]>;
+
+  // Feature 1 — Event Creation (Haruki)
   create(event: IEvent): Promise<IEvent>;
 }
 

@@ -85,6 +85,7 @@ class InMemoryEventRepository implements IEventRepository {
     }
   }
 
+  // Feature 4 — RSVP Toggle (Long)
   async toggleRVSP(eventId: number, userId: string): Promise<Result<string, EventError>> {
     const event = this.events.find((e) => e.id === eventId);
     if (!event) {
@@ -120,6 +121,7 @@ class InMemoryEventRepository implements IEventRepository {
     return Ok("RSVP updated");
   }
 
+  // Feature 10 — Event Search (Long)
   async searchEvents(query: string): Promise<IEvent[]> {
     const normalized = query.toLowerCase();
     if (!normalized) {
@@ -133,6 +135,7 @@ class InMemoryEventRepository implements IEventRepository {
     );
   }
 
+  // Feature 1 — Event Creation (Haruki)
   async create(event: IEvent): Promise<IEvent> {
     this.events.push(event);
     return event;

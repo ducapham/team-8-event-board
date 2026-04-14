@@ -239,6 +239,8 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // Feature 6 — Category and Date Filter (Duc)
+    // Feature 10 — Event Search (Long)
     this.app.get(
       "/events",
       asyncHandler(async (req, res) => {
@@ -255,6 +257,7 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // Feature 10 — Event Search (Long)
     this.app.get(
       "/events/search",
       asyncHandler(async (req, res) => {
@@ -269,6 +272,7 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // Feature 1 — Event Creation (Haruki)
     this.app.get(
       "/events/new",
       asyncHandler(async (req, res) => {
@@ -277,6 +281,7 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // Feature 2 — Event Detail Page (Haruki)
     this.app.get(
       "/events/:id",
       asyncHandler(async (req, res) => {
@@ -303,6 +308,7 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // Feature 5 — Event Publishing and Cancellation (Duc)
     this.app.post(
       "/events/:id/publish",
       asyncHandler(async (req, res) => {
@@ -328,6 +334,7 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // Feature 5 — Event Publishing and Cancellation (Duc)
     this.app.post(
       "/events/:id/cancel",
       asyncHandler(async (req, res) => {
@@ -350,6 +357,28 @@ class ExpressApp implements IApp {
           typeof req.params.id === "string" ? req.params.id : "",
           currentUser,
         );
+      }),
+    );
+
+    // Feature 4 — RSVP Toggle (Long)
+    this.app.post(
+      "/events/:id/toggle",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = touchAppSession(sessionStore(req));
+        const id = Number(req.params.id);
+        if (Number.isNaN(id)) {
+          res.status(400).render("partials/error", {
+            message: "Invalid event id.",
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.toggleFromForm(res, id, browserSession);
       }),
     );
 
@@ -402,6 +431,7 @@ class ExpressApp implements IApp {
 
     // ── Event routes ─────────────────────────────
 
+    // Feature 1 — Event Creation (Haruki)
     this.app.post(
       "/events",
       asyncHandler(async (req, res) => {

@@ -160,10 +160,12 @@ class EventService implements IEventService {
 
   constructor(private readonly repo: IEventRepository) {}
 
+  // Feature 4 — RSVP Toggle (Long)
   async Toggle(eventId: number, userId: string): Promise<Result<string, EventError>> {
     return this.repo.toggleRVSP(eventId, userId);
   }
 
+  // Feature 10 — Event Search (Long)
   async Search(query: string, viewerId?: string): Promise<Result<IEvent[], EventError>> {
     this.latestSearchQuery = query;
     this.latestSearchViewerId = viewerId;
@@ -212,6 +214,7 @@ class EventService implements IEventService {
     }
   }
 
+  // Feature 1 — Event Creation (Haruki)
   async createEvent(
     input: CreateEventInput,
     organizerId: string,
@@ -276,6 +279,7 @@ class EventService implements IEventService {
     return Ok(createdEvent);
   }
 
+  // Feature 2 — Event Detail Page (Haruki)
   async getEventById(
     eventId: string,
     viewerId?: string,
@@ -301,6 +305,7 @@ class EventService implements IEventService {
     return Ok(eventResult.value);
   }
 
+  // Feature 6 — Category and Date Filter (Duc)
   async listPublishedEvents(
     input: EventListInput,
     viewerId?: string,
@@ -363,6 +368,7 @@ class EventService implements IEventService {
     });
   }
 
+  // Feature 2 — Event Detail Page (Haruki)
   async getEventDetail(
     eventId: string,
     actor: EventActor,
@@ -389,6 +395,7 @@ class EventService implements IEventService {
     });
   }
 
+  // Feature 5 — Event Publishing and Cancellation (Duc)
   async publishEvent(
     eventId: string,
     actor: EventActor,
@@ -428,6 +435,7 @@ class EventService implements IEventService {
     });
   }
 
+  // Feature 5 — Event Publishing and Cancellation (Duc)
   async cancelEvent(
     eventId: string,
     actor: EventActor,

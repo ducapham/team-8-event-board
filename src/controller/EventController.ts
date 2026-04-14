@@ -101,6 +101,8 @@ class EventController implements IEventController {
     });
   }
 
+  // Feature 6 — Category and Date Filter (Duc)
+  // Feature 10 — Event Search (Long)
   async showEventList(
     res: Response,
     session: IAppBrowserSession,
@@ -122,6 +124,7 @@ class EventController implements IEventController {
     await this.renderEventsPage(res, session, result.value, null, 200);
   }
 
+  // Feature 2 — Event Detail Page (Haruki)
   async showEventDetail(
     res: Response,
     session: IAppBrowserSession,
@@ -145,6 +148,7 @@ class EventController implements IEventController {
     await this.renderDetailPage(res, session, result.value, pageError, 200);
   }
 
+  // Feature 5 — Event Publishing and Cancellation (Duc)
   async publishFromForm(
     res: Response,
     session: IAppBrowserSession,
@@ -177,6 +181,7 @@ class EventController implements IEventController {
     res.redirect(`/events/${eventId}`);
   }
 
+  // Feature 5 — Event Publishing and Cancellation (Duc)
   async cancelFromForm(
     res: Response,
     session: IAppBrowserSession,
@@ -209,6 +214,7 @@ class EventController implements IEventController {
     res.redirect(`/events/${eventId}`);
   }
 
+  // Feature 10 — Event Search (Long)
   async searchFromHtmx(res: Response, query: string, session: IAppBrowserSession): Promise<void> {
     const result = await this.service.Search(query, session.authenticatedUser?.userId);
 
@@ -236,6 +242,7 @@ class EventController implements IEventController {
     });
   }
 
+  // Feature 4 — RSVP Toggle (Long)
   async toggleFromForm(res: Response, eventId: number, session: IAppBrowserSession): Promise<void> {
     const result = await this.service.Toggle(eventId, session.authenticatedUser?.userId ?? "");
 
@@ -251,6 +258,7 @@ class EventController implements IEventController {
     res.redirect("/events");
   }
 
+  // Feature 1 — Event Creation (Haruki)
   renderCreateForm(req: Request, res: Response): void {
     const browserSession = touchAppSession(req.session);
 
