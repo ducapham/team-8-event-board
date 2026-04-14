@@ -239,21 +239,8 @@ class ExpressApp implements IApp {
       }),
     );
 
-    // ── Authenticated home page ──────────────────────────────────────
-    // TODO: Replace this placeholder with your project's main page.
-
-    this.app.get(
-      "/home",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const browserSession = recordPageView(sessionStore(req));
-        this.logger.info(`GET /home for ${browserSession.browserLabel}`);
-        res.render("home", { session: browserSession, pageError: null });
-      }),
-    );
+    // Feature 6 — Category and Date Filter (Duc)
+    // Feature 10 — Event Search (Long)
     this.app.get(
       "/events",
       asyncHandler(async (req, res) => {
@@ -262,11 +249,118 @@ class ExpressApp implements IApp {
         }
 
         const browserSession = recordPageView(sessionStore(req));
-        this.logger.info(`GET /events for ${browserSession.browserLabel}`);
-        await this.eventController.showEvents(res, browserSession);
+        await this.eventController.showEventList(res, browserSession, {
+          category: typeof req.query.category === "string" ? req.query.category : undefined,
+          timeframe: typeof req.query.timeframe === "string" ? req.query.timeframe : undefined,
+          query: typeof req.query.query === "string" ? req.query.query : undefined,
+        });
       }),
     );
 
+    // Feature 10 — Event Search (Long)
+    this.app.get(
+      "/events/search",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        const query = typeof req.query.query === "string" ? req.query.query : "";
+        this.logger.info(`GET /events/search for ${browserSession.browserLabel}`);
+        await this.eventController.searchFromHtmx(res, query, browserSession);
+      }),
+    );
+
+    // Feature 1 — Event Creation (Haruki)
+    this.app.get(
+      "/events/new",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        this.eventController.renderCreateForm(req, res);
+      }),
+    );
+
+    // Feature 2 — Event Detail Page (Haruki)
+    this.app.get(
+      "/events/:id",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.").message,
+            layout: false,
+          });
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showEventDetail(
+          res,
+          browserSession,
+          typeof req.params.id === "string" ? req.params.id : "",
+          currentUser,
+        );
+      }),
+    );
+
+    // Feature 5 — Event Publishing and Cancellation (Duc)
+    this.app.post(
+      "/events/:id/publish",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.").message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.publishFromForm(
+          res,
+          touchAppSession(sessionStore(req)),
+          typeof req.params.id === "string" ? req.params.id : "",
+          currentUser,
+        );
+      }),
+    );
+
+    // Feature 5 — Event Publishing and Cancellation (Duc)
+    this.app.post(
+      "/events/:id/cancel",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.").message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.cancelFromForm(
+          res,
+          touchAppSession(sessionStore(req)),
+          typeof req.params.id === "string" ? req.params.id : "",
+          currentUser,
+        );
+      }),
+    );
+
+    // Feature 4 — RSVP Toggle (Long)
     this.app.post(
       "/events/:id/toggle",
       asyncHandler(async (req, res) => {
@@ -288,19 +382,42 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // ── Authenticated home page ──────────────────────────────────────
+    // TODO: Replace this placeholder with your project's main page.
+
     this.app.get(
-      "/events/search",
+      "/home",
       asyncHandler(async (req, res) => {
         if (!this.requireAuthenticated(req, res)) {
           return;
         }
 
         const browserSession = recordPageView(sessionStore(req));
-        const query = typeof req.query.query === "string" ? req.query.query : "";
-        this.logger.info(`GET /events/search for ${browserSession.browserLabel}`);
-        await this.eventController.searchFromHtmx(res, query, browserSession);
+        this.logger.info(`GET /home for ${browserSession.browserLabel}`);
+        res.render("home", { session: browserSession, pageError: null });
       }),
     );
+    this.app.post(
+      "/events/:id/toggle",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = touchAppSession(sessionStore(req));
+        const id = Number(req.params.id);
+        if (Number.isNaN(id)) {
+          res.status(400).render("partials/error", {
+            message: "Invalid event id.",
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.toggleFromForm(res, id, browserSession);
+      }),
+    );
+
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -314,14 +431,7 @@ class ExpressApp implements IApp {
 
     // ── Event routes ─────────────────────────────
 
-    this.app.get(
-      "/events/new",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return;
-        this.eventController.renderCreateForm(req, res);
-      }),
-    );
-
+    // Feature 1 — Event Creation (Haruki)
     this.app.post(
       "/events",
       asyncHandler(async (req, res) => {
@@ -330,12 +440,6 @@ class ExpressApp implements IApp {
       }),
     );
 
-    this.app.get(
-      "/events/:id",
-      asyncHandler(async (req, res) => {
-        await this.eventController.getEventDetail(req, res);
-      }),
-    );
   }
 
   getExpressApp(): express.Express {

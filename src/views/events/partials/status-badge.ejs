@@ -1,0 +1,15 @@
+<%
+  const badgeClasses =
+    status === 'draft'
+      ? 'bg-amber-100 text-amber-800 border-amber-200'
+      : status === 'published'
+        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+        : status === 'cancelled'
+          ? 'bg-red-100 text-red-800 border-red-200'
+          : 'bg-slate-100 text-slate-700 border-slate-200';
+  const badgeLabel = status.charAt(0).toUpperCase() + status.slice(1);
+%>
+
+<span class="inline-flex items-center justify-center px-3 py-1.5 rounded-full border text-sm font-semibold <%= badgeClasses %>">
+  <%= badgeLabel %>
+</span>

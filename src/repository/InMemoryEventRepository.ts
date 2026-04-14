@@ -1,7 +1,7 @@
-import type {IEventRepository } from "./EventRepository.js";
-import type { IEvent, IEventSummary } from "../event";
-import {Err, Ok, Result} from "../lib/result.js";
-import { EventError, EventNotFoundError, UserNotFoundError } from "../lib/errors.js";
+import type { IEventRepository } from "./EventRepository.js";
+import type { IEvent } from "../event.js";
+import { Err, Ok, type Result } from "../lib/result.js";
+import { EventError, EventNotFoundError, UserNotFoundError, UnexpectedDependencyError } from "../lib/errors.js";
 import { IUserRecord } from "../auth/User.js";
 import { DEMO_USERS } from "../auth/InMemoryUserRepository.js";
 
@@ -47,8 +47,45 @@ const DEMO_EVENTS: IEvent[] = [
 type RSVPStatus = "Registered" | "Waitlisted" | "Not Registered";
 
 class InMemoryEventRepository implements IEventRepository {
-  constructor(private events: IEvent[], private users: IUserRecord[], private summary:IEventSummary[]) {}
+  constructor(
+    private events: IEvent[],
+    private users: IUserRecord[],
+    private summary: Array<{ id: number; date: Date; time: string; status: RSVPStatus; Event: IEvent; User: IUserRecord }>,
+  ) {}
 
+  async listEvents(): Promise<Result<IEvent[], EventError>> {
+    try {
+      return Ok(this.events);
+    } catch {
+      return Err(new UnexpectedDependencyError("Unable to list events."));
+    }
+  }
+
+  async findById(id: number): Promise<Result<IEvent | null, EventError>> {
+    try {
+      const event = this.events.find((candidate) => candidate.id === id) ?? null;
+      return Ok(event);
+    } catch {
+      return Err(new UnexpectedDependencyError("Unable to read the event."));
+    }
+  }
+
+  async save(event: IEvent): Promise<Result<IEvent, EventError>> {
+    try {
+      const index = this.events.findIndex((candidate) => candidate.id === event.id);
+      if (index === -1) {
+        return Err(new UnexpectedDependencyError("Unable to save the event."));
+      }
+
+      const nextEvent = { ...event, attendees: [...event.attendees], waitlist: [...event.waitlist] };
+      this.events[index] = nextEvent;
+      return Ok(nextEvent);
+    } catch {
+      return Err(new UnexpectedDependencyError("Unable to save the event."));
+    }
+  }
+
+  // Feature 4 — RSVP Toggle (Long)
   async toggleRVSP(eventId: number, userId: string): Promise<Result<string, EventError>> {
     const event = this.events.find((e) => e.id === eventId);
     if (!event) {
@@ -61,17 +98,15 @@ class InMemoryEventRepository implements IEventRepository {
 
     const existingSummary = this.summary.find((s) => s.Event.id === eventId && s.User.id === userId);
     const status: RSVPStatus = existingSummary?.status ?? "Not Registered";
-    const capacity = event.capacity ?? 0;
+    const hasCapacity = event.capacity === undefined || event.attendees.length < event.capacity;
 
-    if (status === "Not Registered" && capacity > event.attendees.length) {
+    if (status === "Not Registered" && hasCapacity) {
       event.attendees.push(user);
-      this.summary.push({ id: this.summary.length + 1, date: event.date, time: "", status: "Registered", Event: event, User: user });
-    }
-    else if (status === "Not Registered") {
+      this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Registered", Event: event, User: user });
+    } else if (status === "Not Registered") {
       event.waitlist.push(user);
-      this.summary.push({ id: this.summary.length + 1, date: event.date, time: "", status: "Waitlisted", Event: event, User: user });
-    }
-    else if (status === "Registered") {
+      this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Waitlisted", Event: event, User: user });
+    } else if (status === "Registered") {
       event.attendees = event.attendees.filter((u) => u.id !== userId);
       this.summary = this.summary.filter((s) => !(s.Event.id === eventId && s.User.id === userId));
       if (event.waitlist.length > 0) {
@@ -79,33 +114,31 @@ class InMemoryEventRepository implements IEventRepository {
         if (nextUser) {
           event.attendees.push(nextUser);
           this.summary = this.summary.filter((s) => !(s.Event.id === eventId && s.User.id === nextUser.id));
-          this.summary.push({ id: this.summary.length + 1, date: event.date, time: "", status: "Registered", Event: event, User: nextUser });
+          this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Registered", Event: event, User: nextUser });
         }
       }
     }
     return Ok("RSVP updated");
   }
 
+  // Feature 10 — Event Search (Long)
   async searchEvents(query: string): Promise<IEvent[]> {
     const normalized = query.toLowerCase();
     if (!normalized) {
       return this.events;
     }
-    const results = this.events.filter((e) =>
+    return this.events.filter((e) =>
       e.title.toLowerCase().includes(normalized) ||
       e.description.toLowerCase().includes(normalized) ||
-      e.location.toLowerCase().includes(normalized)
+      e.location.toLowerCase().includes(normalized) ||
+      e.category.toLowerCase().includes(normalized)
     );
-    return results;
   }
 
+  // Feature 1 — Event Creation (Haruki)
   async create(event: IEvent): Promise<IEvent> {
-      this.events.push(event);
-      return event;
-    }
-  
-  async findById(id: number): Promise<IEvent | null> {
-    return this.events.find((e) => e.id === id) ?? null;
+    this.events.push(event);
+    return event;
   }
 }
 

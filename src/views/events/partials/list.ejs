@@ -39,7 +39,7 @@
             <% } %>
           </div>
 
-          <% if (currentUserId) { %>
+            <% if (currentUserId) { %>
             <% if (isRegistered) { %>
               <form method="post" action="/events/<%= event.id %>/toggle" class="m-0">
                 <button type="submit" class="rounded-2xl bg-red-600 px-4 py-2 text-white font-semibold hover:bg-red-700">Cancel RSVP</button>
@@ -54,6 +54,9 @@
               </form>
             <% } %>
           <% } %>
+          <a href="/events/<%= event.id %>" class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-white font-semibold hover:bg-slate-800">
+            View details
+          </a>
         </div>
       </div>
     </article>
