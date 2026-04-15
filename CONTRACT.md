@@ -35,3 +35,26 @@ Success Example: {ok: true, value: { events: [Event1, Event2], filters: { catego
 Failing Example:
 {ok:false, error: new InvalidFilter("Category filter is invalid.")}
 {ok:false, error: new InvalidFilter("Timeframe filter is invalid.")}
+
+## GetGroupedAttendees(EventID, RequestingUserID, RequestingUserRole):Result<GroupedAttendees, AttendeeListError>
+Success Example: {ok: true, value: { going: [User1, User2], waitlisted: [User3], cancelled: [] }}
+Failing Example:
+{ok: false, error: new EventNotFound("Event not found.")}
+{ok: false, error: new Unauthorized("Only the organizer or an admin can view the attendee list.")}
+
+## ListComments(EventID):Result<ICommentWithAuthor[], CommentError>
+Success Example: {ok: true, value: [{ id: "c1", eventId: 1, userId: "u1", content: "Great event!", authorName: "Alice", createdAt: Date }]}
+Failing Example:
+{ok: false, error: new EventNotFound("Event not found.")}
+
+## PostComment(EventID, UserID, Content):Result<ICommentWithAuthor, CommentError>
+Success Example: {ok: true, value: { id: "c2", eventId: 1, userId: "u2", content: "See you there!", authorName: "Bob", createdAt: Date }}
+Failing Example:
+{ok: false, error: new EmptyContent("Comment content cannot be empty.")}
+{ok: false, error: new EventNotFound("Event not found.")}
+
+## DeleteComment(CommentID, RequestingUserID, RequestingUserRole, EventOrganizerID):Result<boolean, CommentError>
+Success Example: {ok: true, value: true}
+Failing Example:
+{ok: false, error: new CommentNotFound("Comment not found.")}
+{ok: false, error: new UnauthorizedDeletion("Only the author, organizer, or admin can delete this comment.")}
