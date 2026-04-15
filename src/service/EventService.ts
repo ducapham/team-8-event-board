@@ -74,6 +74,12 @@ export interface IEventService {
   getEventDetail(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
   publishEvent(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
   cancelEvent(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
+  getGroupedAttendees(
+    eventId: number,
+    userId: string,
+    role: string
+  ): Promise<Result<any, EventError>>;
+}
 }
 
 function startOfDay(value: Date): Date {
@@ -475,6 +481,35 @@ class EventService implements IEventService {
       permissions: buildPermissions(saveResult.value, actor),
     });
   }
+
+  // Feature 11 — Attendee List (Giorgi)
+  async getGroupedAttendees(
+    eventId: number,
+    userId: string,
+    role: string
+  ): Promise<Result<any, EventError>> {
+    try {
+      const eventResult = await this.repo.findById(eventId);
+
+      if (!eventResult.ok || !eventResult.value) {
+        return Err(new EventNotFoundError("Event not found"));
+      }
+
+      const event = eventResult.value;
+
+      // permission check
+      if (event.organizerId !== userId && role !== "admin") {
+        return Err(new ForbiddenError("Not allowed to view attendees"));
+      }
+
+      const grouped = await this.repo.getGroupedAttendees(eventId);
+
+      return Ok(grouped);
+    } catch {
+      return Err(new UnknownError("Failed to fetch attendees"));
+    }
+  }
+
   // Feature 7 — My RSVPs Dashboard (Giorgi)
   async getMyRSVPs(userId: string): Promise<Result<any, EventError>> {
     try {

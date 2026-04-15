@@ -18,5 +18,7 @@ export interface IEventRepository {
   
   // Feature 7 — My RSVPs Dashboard (Giorgi)
   getRSVPsByUser(userId: string): Promise<any>;
+
+  getGroupedAttendees(eventId: number): Promise<any>;
 }
 
