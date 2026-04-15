@@ -18,6 +18,9 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
+// Feature 12 — Attendee List
+import type { IAttendeeListController } from "./rsvp/AttendeeListController";
+import type { IEventRepository } from "./repository/EventRepository";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -38,6 +41,8 @@ class ExpressApp implements IApp {
     private readonly authController: IAuthController,
     private readonly eventController: IEventController,
     private readonly logger: ILoggingService,
+    private readonly attendeeListController?: IAttendeeListController,
+    private readonly eventRepo?: IEventRepository,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -418,6 +423,28 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // ── Feature 12: Attendee List ─────────────────────────────────────
+    if (this.attendeeListController && this.eventRepo) {
+      this.app.get(
+        "/events/:id/attendees",
+        asyncHandler(async (req, res) => {
+          if (!this.requireAuthenticated(req, res)) return;
+          const currentUser = getAuthenticatedUser(sessionStore(req));
+          if (!currentUser) return;
+          const eventId = Number(req.params.id);
+          if (Number.isNaN(eventId)) {
+            res.status(400).render("partials/error", { message: "Invalid event id.", layout: false });
+            return;
+          }
+          const eventResult = await this.eventRepo!.findById(eventId);
+          const eventTitle = eventResult.ok && eventResult.value ? eventResult.value.title : "Event";
+          await this.attendeeListController!.showAttendees(
+            res, eventId, currentUser.userId, currentUser.role, eventTitle, recordPageView(sessionStore(req)),
+          );
+        }),
+      );
+    }
+
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -451,6 +478,8 @@ export function CreateApp(
   authController: IAuthController,
   eventController: IEventController,
   logger: ILoggingService,
+  attendeeListController?: IAttendeeListController,
+  eventRepo?: IEventRepository,
 ): IApp {
-  return new ExpressApp(authController, eventController, logger);
+  return new ExpressApp(authController, eventController, logger, attendeeListController, eventRepo);
 }
