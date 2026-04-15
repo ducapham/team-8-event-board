@@ -10,6 +10,10 @@ import { CreateInMemoryEventRepository } from "./repository/InMemoryEventReposit
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
+// Feature 13 — Event Comments
+import { CreateInMemoryCommentRepository } from "./comments/InMemoryCommentRepository";
+import { CreateCommentService } from "./comments/CommentService";
+import { CreateCommentController } from "./comments/CommentController";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();
@@ -26,5 +30,10 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const eventService = CreateEventService(eventRepository);
   const eventController = CreateEventController(eventService, resolvedLogger);
 
-  return CreateApp(authController, eventController, resolvedLogger);
+  // Feature 13 — Event Comments wiring
+  const commentRepository = CreateInMemoryCommentRepository();
+  const commentService = CreateCommentService(eventRepository, commentRepository, authUsers);
+  const commentController = CreateCommentController(commentService, eventRepository, resolvedLogger);
+
+  return CreateApp(authController, eventController, resolvedLogger, commentController);
 }
