@@ -65,6 +65,7 @@ export interface EventDetailResult {
 }
 
 export interface IEventService {
+  getMyRSVPs(userId: string): Promise<Result<any, EventError>>;
   Toggle(eventId: number, userId: string): Promise<Result<string, EventError>>;
   Search(query: string, viewerId?: string): Promise<Result<IEvent[], EventError>>;
   createEvent(input: CreateEventInput, organizerId: string): Promise<Result<IEvent, CreateEventError>>;
@@ -473,6 +474,20 @@ class EventService implements IEventService {
       event: resolveEventStatus(saveResult.value, now),
       permissions: buildPermissions(saveResult.value, actor),
     });
+  }
+  // Feature 7 — My RSVPs Dashboard (Giorgi)
+  async getMyRSVPs(userId: string): Promise<Result<any, EventError>> {
+    try {
+      const data = await this.repo.getRSVPsByUser(userId);
+
+      return Ok({
+        going: data.filter((d: any) => d.status === "Registered"),
+        waitlisted: data.filter((d: any) => d.status === "Waitlisted"),
+        cancelled: data.filter((d: any) => d.status === "Not Registered"),
+      });
+    } catch {
+      return Err(new UnknownError("Failed to fetch RSVPs"));
+    }
   }
 }
 
