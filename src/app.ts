@@ -333,6 +333,19 @@ class ExpressApp implements IApp {
         );
       }),
     );
+    // Feature 7 — My RSVPs Dashboard (Giorgi)
+    this.app.get(
+      "/my-rsvps",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showMyRSVPs(res, browserSession);
+      }),
+    );
+
 
     // Feature 5 — Event Publishing and Cancellation (Duc)
     this.app.post(

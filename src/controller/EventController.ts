@@ -43,6 +43,7 @@ export interface IEventController {
   renderCreateForm(req: Request, res: Response): void;
   createEvent(req: Request, res: Response): Promise<void>;
   getEventDetail(req: Request, res: Response): Promise<void>;
+  showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void>;
 }
 
 class EventController implements IEventController {
@@ -352,6 +353,36 @@ class EventController implements IEventController {
       pageError: null,
     });
   }
+  // Feature 7 — My RSVPs Dashboard (Giorgi)
+  async showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void> {
+    const userId = session.authenticatedUser?.userId ?? "";
+
+    const result = await this.service.getMyRSVPs(userId);
+
+    if (result.ok === false) {
+      const status = this.mapErrorStatus(result.value);
+      const log = status >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `My RSVPs failed: ${result.value.message}`);
+
+      res.status(status).render("my-rsvps", {
+        pageError: result.value.message,
+        session,
+        going: [],
+        waitlisted: [],
+        cancelled: [],
+      });
+      return;
+    }
+
+    res.render("my-rsvps", {
+      pageError: null,
+      session,
+      going: result.value.going,
+      waitlisted: result.value.waitlisted,
+      cancelled: result.value.cancelled,
+    });
+  }
+
 }
 
 export function CreateEventController(
