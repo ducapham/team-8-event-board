@@ -84,7 +84,7 @@
     <% } %>
   </div>
   <%# Feature 12 — Link to attendee list (organizer/admin only) %>
-    <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) { %>
+    <% if (session?.authenticatedUser && (session.authenticatedUser.role === 'admin' || session.authenticatedUser.role === 'staff')) { %>
       <div class="mt-6">
         <a href="/events/<%= event.id %>/attendees"
            class="inline-block rounded-xl bg-slate-700 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800">
