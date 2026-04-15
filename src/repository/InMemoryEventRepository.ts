@@ -140,6 +140,18 @@ class InMemoryEventRepository implements IEventRepository {
     this.events.push(event);
     return event;
   }
+  
+  // Feature 7 — My RSVPs Dashboard (Giorgi)
+async getRSVPsByUser(userId: string) {
+  return this.summary
+    .filter((s) => s.User.id === userId)
+    .map((s) => ({
+      event: s.Event,
+      status: s.status,
+      date: s.date,
+      time: s.time,
+    }));
+}
 }
 
 export function CreateInMemoryEventRepository(): IEventRepository {
