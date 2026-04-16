@@ -296,7 +296,12 @@ class ExpressApp implements IApp {
         if (!this.requireAuthenticated(req, res)) return;
 
         const browserSession = recordPageView(sessionStore(req));
-        await this.eventController.showArchive(res, browserSession);
+
+        await this.eventController.showArchive(
+          res,
+          browserSession,
+          typeof req.query.category === "string" ? req.query.category : undefined
+        );
       }),
     );
 

@@ -1,5 +1,10 @@
 <div class="container">
-  <h1>Past Events</h1>
+    <h1>Past Events</h1>
+
+    <form method="GET" action="/events/archive" style="margin-bottom: 1rem;">
+        <input type="text" name="category" placeholder="Filter by category" />
+        <button type="submit">Filter</button>
+    </form>
 
   <% if (pageError) { %>
     <div class="error-box">

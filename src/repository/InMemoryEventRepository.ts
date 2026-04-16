@@ -58,7 +58,7 @@ function buildDemoEvents(now: Date = new Date()): IEvent[] {
       date: new Date("2026-06-05"),
       time: "12:00 - 14:00",
       startDatetime: new Date("2026-06-05T12:00:00"),
-      endDatetime: new Date("2020-06-05T14:00:00"),
+      endDatetime: new Date("2026-06-05T14:00:00"),
       organizerId: "user-admin",
       attendees: [],
       waitlist: [],
@@ -157,6 +157,24 @@ function buildDemoEvents(now: Date = new Date()): IEvent[] {
       updatedAt: createdAt,
       status: "published",
     },
+    {
+      id: 105,
+      title: "Spring Music Festival",
+      description: "A full-day outdoor festival featuring live bands, food trucks, and local vendors.",
+      location: "Town Common",
+      category: "Music",
+      date: startOfDay(new Date("2024-03-20T12:00:00")),
+      time: "12:00 - 20:00",
+      startDatetime: new Date("2024-03-20T12:00:00"),
+      endDatetime: new Date("2024-03-20T20:00:00"),
+      organizerId: "user-admin",
+      attendees: [],
+      waitlist: [],
+      capacity: 200,
+      createdAt,
+      updatedAt: createdAt,
+      status: "published",
+    }
   ];
 }
 

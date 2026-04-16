@@ -44,7 +44,11 @@ export interface IEventController {
   createEvent(req: Request, res: Response): Promise<void>;
   getEventDetail(req: Request, res: Response): Promise<void>;
   showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void>;
-  showArchive(res: Response, session: IAppBrowserSession): Promise<void>;
+  showArchive(
+    res: Response,
+    session: IAppBrowserSession,
+    category?: string
+  ): Promise<void>;
 }
 
 class EventController implements IEventController {
@@ -360,9 +364,10 @@ class EventController implements IEventController {
   
   async showArchive(
     res: Response,
-    session: IAppBrowserSession
+    session: IAppBrowserSession,
+    category?: string
   ): Promise<void> {
-    const result = await this.service.getArchivedEvents();
+    const result = await this.service.getArchivedEvents(category);
 
     if (result.ok === false) {
       return res.status(500).render("archive", {
