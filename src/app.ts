@@ -289,6 +289,17 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // Feature 11 — Past Event Archiving (Giorgi)
+    this.app.get(
+      "/events/archive",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showArchive(res, browserSession);
+      }),
+    );
+
     // Feature 2 — Event Detail Page (Haruki)
     this.app.get(
       "/events/:id",
@@ -338,21 +349,6 @@ class ExpressApp implements IApp {
           touchAppSession(sessionStore(req)),
           typeof req.params.id === "string" ? req.params.id : "",
           currentUser,
-        );
-      }),
-    );
-
-    // Feature 11 — Attendee List (Giorgi)
-    this.app.get(
-      "/events/:id/attendees",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return;
-
-        const browserSession = recordPageView(sessionStore(req));
-        await this.eventController.showAttendees(
-          res,
-          browserSession,
-          typeof req.params.id === "string" ? req.params.id : ""
         );
       }),
     );

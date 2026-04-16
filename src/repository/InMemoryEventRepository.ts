@@ -58,7 +58,7 @@ function buildDemoEvents(now: Date = new Date()): IEvent[] {
       date: new Date("2026-06-05"),
       time: "12:00 - 14:00",
       startDatetime: new Date("2026-06-05T12:00:00"),
-      endDatetime: new Date("2026-06-05T14:00:00"),
+      endDatetime: new Date("2020-06-05T14:00:00"),
       organizerId: "user-admin",
       attendees: [],
       waitlist: [],

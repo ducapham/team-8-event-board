@@ -74,13 +74,8 @@ export interface IEventService {
   getEventDetail(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
   publishEvent(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
   cancelEvent(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
-  getGroupedAttendees(
-    eventId: number,
-    userId: string,
-    role: string
-  ): Promise<Result<any, EventError>>;
+  getArchivedEvents(): Promise<Result<IEvent[], EventError>>;
 }
-
 
 function startOfDay(value: Date): Date {
   const nextValue = new Date(value.getTime());
@@ -335,7 +330,11 @@ class EventService implements IEventService {
 
     const filteredEvents = eventsResult.value
       .map((event) => resolveEventStatus(event, now))
-      .filter((event) => event.status === "published" && event.startDatetime.getTime() >= now.getTime())
+      .filter((event) => {
+        const eventIsOwnedDraft = event.status === "draft" && viewerId !== undefined && event.organizerId === viewerId;
+        const eventIsPublishedUpcoming = event.status === "published" && event.startDatetime.getTime() >= now.getTime();
+        return eventIsPublishedUpcoming || eventIsOwnedDraft;
+      })
       .filter((event) => (filters.category ? event.category.toLowerCase() === filters.category : true))
       .filter((event) => {
         if (filters.timeframe === "this-week") {
@@ -477,31 +476,6 @@ class EventService implements IEventService {
       permissions: buildPermissions(saveResult.value, actor),
     });
   }
-
-  // Feature 11 — Attendee List (Giorgi)
-  async getGroupedAttendees(
-    eventId: number,
-    userId: string,
-    role: string
-  ): Promise<Result<any, EventError>> {
-
-    const eventResult = await this.repo.findById(eventId);
-
-    if (!eventResult.ok || !eventResult.value) {
-      return Err(new EventNotFoundError("Event not found"));
-    }
-
-    const event = eventResult.value;
-
-    if (!(role === "admin" || event.organizerId === userId)) {
-      return Err(new ForbiddenError("Not allowed to view attendees"));
-    }
-
-    const grouped = await this.repo.getGroupedAttendees(eventId);
-
-    return Ok(grouped);
-  }
-
   // Feature 7 — My RSVPs Dashboard (Giorgi)
   async getMyRSVPs(userId: string): Promise<Result<any, EventError>> {
     try {
@@ -515,6 +489,24 @@ class EventService implements IEventService {
     } catch {
       return Err(new UnknownError("Failed to fetch RSVPs"));
     }
+  }
+
+  // Feature 11 — Past Event Archiving (Giorgi)
+  async getArchivedEvents(): Promise<Result<IEvent[], EventError>> {
+    const result = await this.repo.listEvents();
+
+    if (result.ok === false) {
+      return result;
+    }
+
+    const now = new Date();
+
+    const pastEvents = result.value
+      .map((event) => resolveEventStatus(event, now))
+      .filter((event) => event.status === "past")
+      .sort((a, b) => b.startDatetime.getTime() - a.startDatetime.getTime());
+
+    return Ok(pastEvents);
   }
 }
 

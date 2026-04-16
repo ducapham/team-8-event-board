@@ -44,17 +44,14 @@ export interface IEventController {
   createEvent(req: Request, res: Response): Promise<void>;
   getEventDetail(req: Request, res: Response): Promise<void>;
   showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void>;
-  showAttendees(
-  res: Response,
-  session: IAppBrowserSession,
-  eventId: string
-): Promise<void>;
+  showArchive(res: Response, session: IAppBrowserSession): Promise<void>;
 }
 
 class EventController implements IEventController {
   constructor(
     private readonly service: IEventService,
     private readonly logger: ILoggingService,
+    
   ) {}
 
   private isErrorResult<T>(result: { ok: false; value: EventError } | { ok: true; value: T }): result is { ok: false; value: EventError } {
@@ -359,36 +356,26 @@ class EventController implements IEventController {
     });
   }
 
-  // Feature 11 — Attendee List (Giorgi)
-  async showAttendees(
+  // Feature 11 — Past Event Archiving (Giorgi)
+  
+  async showArchive(
     res: Response,
-    session: IAppBrowserSession,
-    eventId: string
+    session: IAppBrowserSession
   ): Promise<void> {
-    const user = session.authenticatedUser;
-
-    const result = await this.service.getGroupedAttendees(
-      Number(eventId),
-      user?.userId ?? "",
-      user?.role ?? "user"
-    );
+    const result = await this.service.getArchivedEvents();
 
     if (result.ok === false) {
-      return res.status(403).render("attendees", {
+      return res.status(500).render("archive", {
         pageError: result.value.message,
         session,
-        going: [],
-        waitlisted: [],
-        cancelled: [],
+        events: [],
       });
     }
 
-    return res.render("attendees", {
+    return res.render("archive", {
       pageError: null,
       session,
-      going: result.value.going,
-      waitlisted: result.value.waitlisted,
-      cancelled: result.value.cancelled,
+      events: result.value,
     });
   }
 
