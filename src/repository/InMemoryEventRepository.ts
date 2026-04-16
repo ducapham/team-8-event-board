@@ -5,44 +5,160 @@ import { EventError, EventNotFoundError, UserNotFoundError, UnexpectedDependency
 import { IUserRecord } from "../auth/User.js";
 import { DEMO_USERS } from "../auth/InMemoryUserRepository.js";
 
-const DEMO_EVENTS: IEvent[] = [
-  {
-    id: 1,
-    title: "Community Picnic",
-    description: "Bring a dish, meet neighbors, and enjoy outdoor games.",
-    location: "Riverside Park",
-    category: "Social",
-    date: new Date("2026-06-05"),
-    time: "12:00 - 14:00",
-    startDatetime: new Date("2026-06-05T12:00:00"),
-    endDatetime: new Date("2026-06-05T14:00:00"),
-    organizerId: "user-admin",
-    attendees: [],
-    waitlist: [],
-    capacity: 50,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    status: "published",
-  },
-  {
-    id: 2,
-    title: "Startup Pitch Night",
-    description: "Founders present ideas and meet early-stage investors.",
-    location: "Innovation Hub",
-    category: "Business",
-    date: new Date("2026-06-20"),
-    time: "18:30 - 20:30",
-    startDatetime: new Date("2026-06-20T18:30:00"),
-    endDatetime: new Date("2026-06-20T20:30:00"),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    status: "published",
-    organizerId: "user-staff",
-    attendees: [],
-    waitlist: [],
-    capacity: 30,
-  },
-];
+function startOfDay(value: Date): Date {
+  const nextValue = new Date(value.getTime());
+  nextValue.setHours(0, 0, 0, 0);
+  return nextValue;
+}
+
+function addDays(value: Date, days: number): Date {
+  const nextValue = new Date(value.getTime());
+  nextValue.setDate(nextValue.getDate() + days);
+  return nextValue;
+}
+
+function atTime(value: Date, hours: number, minutes: number): Date {
+  const nextValue = new Date(value.getTime());
+  nextValue.setHours(hours, minutes, 0, 0);
+  return nextValue;
+}
+
+function nextWeekday(value: Date, weekday: number): Date {
+  const base = startOfDay(value);
+  let daysAhead = (weekday - base.getDay() + 7) % 7;
+  if (daysAhead === 0) {
+    daysAhead = 7;
+  }
+
+  return addDays(base, daysAhead);
+}
+
+function buildDemoEvents(now: Date = new Date()): IEvent[] {
+  const today = startOfDay(now);
+  const tomorrowStart = atTime(addDays(today, 1), 18, 0);
+  const tomorrowEnd = atTime(addDays(today, 1), 20, 0);
+  const upcomingSaturday = nextWeekday(now, 6);
+  const saturdayStart = atTime(upcomingSaturday, 14, 0);
+  const saturdayEnd = atTime(upcomingSaturday, 17, 0);
+  const upcomingTuesday = nextWeekday(now, 2);
+  const tuesdayStart = atTime(upcomingTuesday, 18, 30);
+  const tuesdayEnd = atTime(upcomingTuesday, 20, 0);
+  const upcomingThursday = nextWeekday(now, 4);
+  const thursdayStart = atTime(upcomingThursday, 17, 30);
+  const thursdayEnd = atTime(upcomingThursday, 19, 30);
+  const createdAt = addDays(today, -2);
+
+  return [
+    {
+      id: 1,
+      title: "Community Picnic",
+      description: "Bring a dish, meet neighbors, and enjoy outdoor games.",
+      location: "Riverside Park",
+      category: "Social",
+      date: new Date("2026-06-05"),
+      time: "12:00 - 14:00",
+      startDatetime: new Date("2026-06-05T12:00:00"),
+      endDatetime: new Date("2026-06-05T14:00:00"),
+      organizerId: "user-admin",
+      attendees: [],
+      waitlist: [],
+      capacity: 50,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      status: "published",
+    },
+    {
+      id: 2,
+      title: "Startup Pitch Night",
+      description: "Founders present ideas and meet early-stage investors.",
+      location: "Innovation Hub",
+      category: "Business",
+      date: new Date("2026-06-20"),
+      time: "18:30 - 20:30",
+      startDatetime: new Date("2026-06-20T18:30:00"),
+      endDatetime: new Date("2026-06-20T20:30:00"),
+      organizerId: "user-staff",
+      attendees: [],
+      waitlist: [],
+      capacity: 30,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      status: "published",
+    },
+    {
+      id: 101,
+      title: "Neighborhood Social Mixer",
+      description: "Meet nearby members, share community updates, and connect with new neighbors.",
+      location: "Riverside Community Hall",
+      category: "Social",
+      date: startOfDay(tomorrowStart),
+      time: "18:00 - 20:00",
+      startDatetime: tomorrowStart,
+      endDatetime: tomorrowEnd,
+      organizerId: "user-staff",
+      attendees: [],
+      waitlist: [],
+      capacity: 40,
+      createdAt,
+      updatedAt: createdAt,
+      status: "published",
+    },
+    {
+      id: 102,
+      title: "Weekend Art Walk",
+      description: "A guided walk through local galleries and pop-up exhibits featuring regional artists.",
+      location: "Downtown Arts District",
+      category: "Arts",
+      date: startOfDay(saturdayStart),
+      time: "14:00 - 17:00",
+      startDatetime: saturdayStart,
+      endDatetime: saturdayEnd,
+      organizerId: "user-staff",
+      attendees: [],
+      waitlist: [],
+      capacity: 80,
+      createdAt,
+      updatedAt: createdAt,
+      status: "published",
+    },
+    {
+      id: 103,
+      title: "Accessibility Workshop",
+      description: "A draft workshop plan for organizers who want to design more inclusive events.",
+      location: "Library Lab Room B",
+      category: "Educational",
+      date: startOfDay(tuesdayStart),
+      time: "18:30 - 20:00",
+      startDatetime: tuesdayStart,
+      endDatetime: tuesdayEnd,
+      organizerId: "user-staff",
+      attendees: [],
+      waitlist: [],
+      capacity: 20,
+      createdAt,
+      updatedAt: createdAt,
+      status: "draft",
+    },
+    {
+      id: 104,
+      title: "Park Cleanup Drive",
+      description: "Join volunteers for a cleanup and beautification session at the riverside park.",
+      location: "Riverside Park Entrance",
+      category: "Volunteer",
+      date: startOfDay(thursdayStart),
+      time: "17:30 - 19:30",
+      startDatetime: thursdayStart,
+      endDatetime: thursdayEnd,
+      organizerId: "user-admin",
+      attendees: [],
+      waitlist: [],
+      capacity: 60,
+      createdAt,
+      updatedAt: createdAt,
+      status: "published",
+    },
+  ];
+}
 
 type RSVPStatus = "Registered" | "Waitlisted" | "Not Registered";
 
@@ -165,19 +281,8 @@ async getRSVPsByUser(userId: string) {
 
 }
 
-// Feature 11 — Attendee List (Giorgi)
-async getGroupedAttendees(eventId: number) {
-  const filtered = this.summary.filter((s) => s.Event.id === eventId);
-
-  return {
-    going: filtered.filter((s) => s.status === "Registered"),
-    waitlisted: filtered.filter((s) => s.status === "Waitlisted"),
-    cancelled: filtered.filter((s) => s.status === "Not Registered"),
-  };
-}
-
 }
 
 export function CreateInMemoryEventRepository(): IEventRepository {
-  return new InMemoryEventRepository(DEMO_EVENTS, DEMO_USERS, []);
+  return new InMemoryEventRepository(buildDemoEvents(), DEMO_USERS, []);
 }
