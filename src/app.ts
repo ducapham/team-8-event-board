@@ -574,9 +574,14 @@ export function CreateApp(
   logger: ILoggingService,
   attendeeListController?: IAttendeeListController,
   eventRepo?: IEventRepository,
-): IApp {
-  return new ExpressApp(authController, eventController, logger, attendeeListController, eventRepo);
   commentController?: ICommentController,
 ): IApp {
-  return new ExpressApp(authController, eventController, logger, commentController);
+  return new ExpressApp(
+    authController,
+    eventController,
+    logger,
+    attendeeListController,
+    eventRepo,
+    commentController,
+  );
 }
