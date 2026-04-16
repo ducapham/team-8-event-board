@@ -14,7 +14,7 @@ import {
   CommentNotFound,
   UnauthorizedDeletion,
   type CommentError,
-} from "../lib/commentErrors.js";
+} from "../lib/errors.js";
 
 export interface ICommentService {
   listComments(eventId: number): Promise<Result<ICommentWithAuthor[], CommentError>>;
