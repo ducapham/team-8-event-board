@@ -80,7 +80,7 @@ export interface IEventService {
     role: string
   ): Promise<Result<any, EventError>>;
 }
-}
+
 
 function startOfDay(value: Date): Date {
   const nextValue = new Date(value.getTime());
@@ -488,26 +488,22 @@ class EventService implements IEventService {
     userId: string,
     role: string
   ): Promise<Result<any, EventError>> {
-    try {
-      const eventResult = await this.repo.findById(eventId);
 
-      if (!eventResult.ok || !eventResult.value) {
-        return Err(new EventNotFoundError("Event not found"));
-      }
+    const eventResult = await this.repo.findById(eventId);
 
-      const event = eventResult.value;
-
-      // permission check
-      if (event.organizerId !== userId && role !== "admin") {
-        return Err(new ForbiddenError("Not allowed to view attendees"));
-      }
-
-      const grouped = await this.repo.getGroupedAttendees(eventId);
-
-      return Ok(grouped);
-    } catch {
-      return Err(new UnknownError("Failed to fetch attendees"));
+    if (!eventResult.ok || !eventResult.value) {
+      return Err(new EventNotFoundError("Event not found"));
     }
+
+    const event = eventResult.value;
+
+    if (!(role === "admin" || event.organizerId === userId)) {
+      return Err(new ForbiddenError("Not allowed to view attendees"));
+    }
+
+    const grouped = await this.repo.getGroupedAttendees(eventId);
+
+    return Ok(grouped);
   }
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
