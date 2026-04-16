@@ -95,3 +95,15 @@
   </div>
 <% } %>
 </div>
+
+<%# Feature 13 — Event Comments: loads the comment list via HTMX on page load %>
+<% if (event) { %>
+  <div
+    class="max-w-3xl mx-auto mt-6"
+    hx-get="/events/<%= event.id %>/comments"
+    hx-trigger="load"
+    hx-swap="innerHTML"
+  >
+    <p class="text-sm text-slate-400 italic">Loading comments…</p>
+  </div>
+<% } %>

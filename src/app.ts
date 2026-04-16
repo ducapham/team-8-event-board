@@ -21,6 +21,8 @@ import { ILoggingService } from "./service/LoggingService";
 // Feature 12 — Attendee List
 import type { IAttendeeListController } from "./rsvp/AttendeeListController";
 import type { IEventRepository } from "./repository/EventRepository";
+// Feature 13 — Event Comments
+import type { ICommentController } from "./controller/CommentController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -43,6 +45,7 @@ class ExpressApp implements IApp {
     private readonly logger: ILoggingService,
     private readonly attendeeListController?: IAttendeeListController,
     private readonly eventRepo?: IEventRepository,
+    private readonly commentController?: ICommentController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -445,6 +448,68 @@ class ExpressApp implements IApp {
       );
     }
 
+    // ── Feature 13 — Event Comments (Fiona) ─────────────────────────
+
+    if (this.commentController) {
+      // GET /events/:id/comments — load comment list partial (HTMX)
+      this.app.get(
+        "/events/:id/comments",
+        asyncHandler(async (req, res) => {
+          if (!this.requireAuthenticated(req, res)) return;
+          const eventId = Number(req.params.id);
+          if (Number.isNaN(eventId)) {
+            res.status(400).render("partials/error", { message: "Invalid event id.", layout: false });
+            return;
+          }
+          await this.commentController!.listComments(res, eventId);
+        }),
+      );
+
+      // POST /events/:id/comments — submit a new comment (HTMX)
+      this.app.post(
+        "/events/:id/comments",
+        asyncHandler(async (req, res) => {
+          if (!this.requireAuthenticated(req, res)) return;
+          const currentUser = getAuthenticatedUser(sessionStore(req));
+          if (!currentUser) {
+            res.status(401).render("partials/error", { message: "Please log in.", layout: false });
+            return;
+          }
+          const eventId = Number(req.params.id);
+          if (Number.isNaN(eventId)) {
+            res.status(400).render("partials/error", { message: "Invalid event id.", layout: false });
+            return;
+          }
+          await this.commentController!.postComment(req, res, eventId, currentUser.userId);
+        }),
+      );
+
+      // POST /events/:id/comments/:commentId/delete — delete a comment (HTMX)
+      this.app.post(
+        "/events/:id/comments/:commentId/delete",
+        asyncHandler(async (req, res) => {
+          if (!this.requireAuthenticated(req, res)) return;
+          const currentUser = getAuthenticatedUser(sessionStore(req));
+          if (!currentUser) {
+            res.status(401).render("partials/error", { message: "Please log in.", layout: false });
+            return;
+          }
+          const eventId = Number(req.params.id);
+          if (Number.isNaN(eventId)) {
+            res.status(400).render("partials/error", { message: "Invalid event id.", layout: false });
+            return;
+          }
+          await this.commentController!.deleteComment(
+            req, res,
+            typeof req.params.commentId === "string" ? req.params.commentId : "",
+            eventId,
+            currentUser.userId,
+            currentUser.role,
+          );
+        }),
+      );
+    }
+
     // ── Error handler ────────────────────────────────────────────────
 
     this.app.use((err: unknown, _req: Request, res: Response, _next: (value?: unknown) => void) => {
@@ -482,4 +547,7 @@ export function CreateApp(
   eventRepo?: IEventRepository,
 ): IApp {
   return new ExpressApp(authController, eventController, logger, attendeeListController, eventRepo);
+  commentController?: ICommentController,
+): IApp {
+  return new ExpressApp(authController, eventController, logger, commentController);
 }
