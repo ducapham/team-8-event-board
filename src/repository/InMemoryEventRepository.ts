@@ -164,6 +164,18 @@ async getRSVPsByUser(userId: string) {
     }));
 
 }
+
+// Feature 11 — Attendee List (Giorgi)
+async getGroupedAttendees(eventId: number) {
+  const filtered = this.summary.filter((s) => s.Event.id === eventId);
+
+  return {
+    going: filtered.filter((s) => s.status === "Registered"),
+    waitlisted: filtered.filter((s) => s.status === "Waitlisted"),
+    cancelled: filtered.filter((s) => s.status === "Not Registered"),
+  };
+}
+
 }
 
 export function CreateInMemoryEventRepository(): IEventRepository {

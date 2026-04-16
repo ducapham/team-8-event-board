@@ -44,6 +44,11 @@ export interface IEventController {
   createEvent(req: Request, res: Response): Promise<void>;
   getEventDetail(req: Request, res: Response): Promise<void>;
   showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void>;
+  showAttendees(
+  res: Response,
+  session: IAppBrowserSession,
+  eventId: string
+): Promise<void>;
 }
 
 class EventController implements IEventController {
@@ -353,6 +358,40 @@ class EventController implements IEventController {
       pageError: null,
     });
   }
+
+  // Feature 11 — Attendee List (Giorgi)
+  async showAttendees(
+    res: Response,
+    session: IAppBrowserSession,
+    eventId: string
+  ): Promise<void> {
+    const user = session.authenticatedUser;
+
+    const result = await this.service.getGroupedAttendees(
+      Number(eventId),
+      user?.userId ?? "",
+      user?.role ?? "user"
+    );
+
+    if (result.ok === false) {
+      return res.status(403).render("attendees", {
+        pageError: result.value.message,
+        session,
+        going: [],
+        waitlisted: [],
+        cancelled: [],
+      });
+    }
+
+    return res.render("attendees", {
+      pageError: null,
+      session,
+      going: result.value.going,
+      waitlisted: result.value.waitlisted,
+      cancelled: result.value.cancelled,
+    });
+  }
+
   // Feature 7 — My RSVPs Dashboard (Giorgi)
   async showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void> {
     const userId = session.authenticatedUser?.userId ?? "";

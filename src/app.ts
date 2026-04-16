@@ -333,6 +333,22 @@ class ExpressApp implements IApp {
         );
       }),
     );
+
+    // Feature 11 — Attendee List (Giorgi)
+    this.app.get(
+      "/events/:id/attendees",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showAttendees(
+          res,
+          browserSession,
+          typeof req.params.id === "string" ? req.params.id : ""
+        );
+      }),
+    );
+
     // Feature 7 — My RSVPs Dashboard (Giorgi)
     this.app.get(
       "/my-rsvps",
