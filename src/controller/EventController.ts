@@ -39,7 +39,7 @@ export interface IEventController {
     actor: IAuthenticatedUserSession,
   ): Promise<void>;
   searchFromHtmx(res: Response, query: string, session: IAppBrowserSession): Promise<void>;
-  toggleFromForm(res: Response, eventId: number, session: IAppBrowserSession): Promise<void>;
+  toggleFromForm(res: Response, eventId: number, session: IAppBrowserSession, redirectOnSuccess?: boolean): Promise<void>;
   renderCreateForm(req: Request, res: Response): void;
   createEvent(req: Request, res: Response): Promise<void>;
   getEventDetail(req: Request, res: Response): Promise<void>;
@@ -221,6 +221,38 @@ class EventController implements IEventController {
   }
 
   // Feature 10 — Event Search (Long)
+  async renderEventListPartial(
+    res: Response,
+    session: IAppBrowserSession,
+    query: { category?: string; timeframe?: string; query?: string },
+    pageError: string | null = null,
+    status = 200,
+  ): Promise<void> {
+    const result = await this.service.listPublishedEvents(query, session.authenticatedUser?.userId);
+
+    if (result.ok === false) {
+      const statusCode = this.mapErrorStatus(result.value);
+      const log = statusCode >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `List events failed: ${result.value.message}`);
+      res.status(statusCode).render("events/partials/list", {
+        layout: false,
+        pageError: result.value.message,
+        events: [],
+        session,
+        query: query.query ?? "",
+      });
+      return;
+    }
+
+    res.status(status).render("events/partials/list", {
+      layout: false,
+      pageError,
+      events: result.value.events,
+      session,
+      query: result.value.filters.query,
+    });
+  }
+
   async searchFromHtmx(res: Response, query: string, session: IAppBrowserSession): Promise<void> {
     const result = await this.service.Search(query, session.authenticatedUser?.userId);
 
@@ -249,7 +281,12 @@ class EventController implements IEventController {
   }
 
   // Feature 4 — RSVP Toggle (Long)
-  async toggleFromForm(res: Response, eventId: number, session: IAppBrowserSession): Promise<void> {
+  async toggleFromForm(
+    res: Response,
+    eventId: number,
+    session: IAppBrowserSession,
+    redirectOnSuccess = true,
+  ): Promise<void> {
     const result = await this.service.Toggle(eventId, session.authenticatedUser?.userId ?? "");
 
     if (this.isErrorResult(result)) {
@@ -257,11 +294,26 @@ class EventController implements IEventController {
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Event RSVP toggle failed: ${result.value.message}`);
       res.status(status);
-      await this.showEventList(res, session, { category: undefined, timeframe: undefined, query: undefined });
+      await this.renderEventListPartial(
+        res,
+        session,
+        { category: undefined, timeframe: undefined, query: undefined },
+        result.value.message,
+      );
       return;
     }
 
-    res.redirect("/events");
+    if (redirectOnSuccess) {
+      res.redirect("/events");
+      return;
+    }
+
+    await this.renderEventListPartial(
+      res,
+      session,
+      { category: undefined, timeframe: undefined, query: undefined },
+      null,
+    );
   }
 
   // Feature 1 — Event Creation (Haruki)
