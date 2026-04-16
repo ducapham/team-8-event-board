@@ -342,21 +342,6 @@ class ExpressApp implements IApp {
       }),
     );
 
-    // Feature 11 — Attendee List (Giorgi)
-    this.app.get(
-      "/events/:id/attendees",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return;
-
-        const browserSession = recordPageView(sessionStore(req));
-        await this.eventController.showAttendees(
-          res,
-          browserSession,
-          typeof req.params.id === "string" ? req.params.id : ""
-        );
-      }),
-    );
-
     // Feature 7 — My RSVPs Dashboard (Giorgi)
     this.app.get(
       "/my-rsvps",
@@ -435,27 +420,6 @@ class ExpressApp implements IApp {
         res.render("home", { session: browserSession, pageError: null });
       }),
     );
-    this.app.post(
-      "/events/:id/toggle",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const browserSession = touchAppSession(sessionStore(req));
-        const id = Number(req.params.id);
-        if (Number.isNaN(id)) {
-          res.status(400).render("partials/error", {
-            message: "Invalid event id.",
-            layout: false,
-          });
-          return;
-        }
-
-        await this.eventController.toggleFromForm(res, id, browserSession);
-      }),
-    );
-
     // ── Feature 12: Attendee List ─────────────────────────────────────
     if (this.attendeeListController && this.eventRepo) {
       this.app.get(
