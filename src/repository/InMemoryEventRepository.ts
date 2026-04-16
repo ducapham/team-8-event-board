@@ -140,7 +140,18 @@ class InMemoryEventRepository implements IEventRepository {
     this.events.push(event);
     return event;
   }
-  
+
+  // Feature 11 — Attendee List (Giorgi)
+  async getGroupedAttendees(eventId: number) {
+    const filtered = this.summary.filter((s) => s.Event.id === eventId);
+
+    return {
+      going: filtered.filter((s) => s.status === "Registered"),
+      waitlisted: filtered.filter((s) => s.status === "Waitlisted"),
+      cancelled: filtered.filter((s) => s.status === "Not Registered"),
+    };
+  }
+
   // Feature 7 — My RSVPs Dashboard (Giorgi)
 async getRSVPsByUser(userId: string) {
   return this.summary
@@ -151,6 +162,7 @@ async getRSVPsByUser(userId: string) {
       date: s.date,
       time: s.time,
     }));
+
 }
 
 // Feature 11 — Attendee List (Giorgi)
