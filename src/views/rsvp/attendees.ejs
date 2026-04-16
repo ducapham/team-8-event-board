@@ -1,0 +1,40 @@
+<div class="max-w-3xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+  <p class="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-2">Feature 12 — Attendee List</p>
+  <h1 class="text-3xl font-bold text-slate-900 mb-1"><%= eventTitle %></h1>
+  <p class="text-slate-400 text-sm mb-8">Event #<%= eventId %></p>
+
+  <% const groups = [
+    { label: "Going",      key: "going",      textColor: "text-green-700",  borderColor: "border-green-200" },
+    { label: "Waitlisted", key: "waitlisted",  textColor: "text-yellow-700", borderColor: "border-yellow-200" },
+    { label: "Cancelled",  key: "cancelled",   textColor: "text-red-700",    borderColor: "border-red-200" },
+  ] %>
+
+  <div class="space-y-8">
+    <% for (const group of groups) { %>
+      <section>
+        <h2 class="text-sm font-semibold uppercase tracking-wide mb-3 <%= group.textColor %>">
+          <%= group.label %> (<%= grouped[group.key].length %>)
+        </h2>
+
+        <% if (grouped[group.key].length === 0) { %>
+          <p class="text-slate-400 text-sm italic">No attendees in this group.</p>
+        <% } else { %>
+          <ul class="divide-y divide-slate-100 border <%= group.borderColor %> rounded-xl overflow-hidden">
+            <% for (const attendee of grouped[group.key]) { %>
+              <li class="flex items-center justify-between px-4 py-3 bg-white hover:bg-slate-50">
+                <span class="font-medium text-slate-800"><%= attendee.displayName %></span>
+                <span class="text-xs text-slate-400">
+                  <%= attendee.createdAt.toLocaleDateString() %>
+                </span>
+              </li>
+            <% } %>
+          </ul>
+        <% } %>
+      </section>
+    <% } %>
+  </div>
+
+  <div class="mt-8">
+    <a href="/events/<%= eventId %>" class="text-blue-600 hover:underline text-sm">&larr; Back to event</a>
+  </div>
+</div>
