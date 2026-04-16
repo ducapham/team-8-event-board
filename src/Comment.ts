@@ -9,7 +9,6 @@ export interface IComment {
   createdAt: Date;
 }
 
-// Comment enriched with the author's display name — used in views.
 export interface ICommentWithAuthor {
   id: string;
   eventId: number;

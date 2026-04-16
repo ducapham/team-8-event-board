@@ -11,9 +11,9 @@ import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
 // Feature 13 — Event Comments
-import { CreateInMemoryCommentRepository } from "./comments/InMemoryCommentRepository";
-import { CreateCommentService } from "./comments/CommentService";
-import { CreateCommentController } from "./comments/CommentController";
+import { CreateInMemoryCommentRepository } from "./repository/InMemoryCommentRepository";
+import { CreateCommentService } from "./service/CommentService";
+import { CreateCommentController } from "./controller/CommentController";
 
 export function createComposedApp(logger?: ILoggingService): IApp {
   const resolvedLogger = logger ?? CreateLoggingService();

@@ -1,9 +1,9 @@
 // Feature 13 — Event Comments error types
 
 export type CommentError =
-  | { name: "EmptyContent"; message: string }
-  | { name: "EventNotFound"; message: string }
   | { name: "CommentNotFound"; message: string }
+  | { name: "CommentEventNotFound"; message: string }
+  | { name: "EmptyContent"; message: string }
   | { name: "UnauthorizedDeletion"; message: string };
 
 export const EmptyContent = (): CommentError => ({
@@ -12,8 +12,8 @@ export const EmptyContent = (): CommentError => ({
 });
 
 export const CommentEventNotFound = (eventId: number): CommentError => ({
-  name: "EventNotFound",
-  message: `Event ${eventId} was not found.`,
+  name: "CommentEventNotFound",
+  message: `Event with id '${eventId}' was not found.`,
 });
 
 export const CommentNotFound = (commentId: string): CommentError => ({

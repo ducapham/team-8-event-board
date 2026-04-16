@@ -19,7 +19,7 @@ import {
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
 // Feature 13 — Event Comments
-import type { ICommentController } from "./comments/CommentController";
+import type { ICommentController } from "./controller/CommentController";
 
 type AsyncRequestHandler = RequestHandler;
 

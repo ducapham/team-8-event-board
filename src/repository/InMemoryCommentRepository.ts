@@ -1,8 +1,8 @@
 // Feature 13 — Event Comments
 // In-memory comment repository with seed data for development.
 
-import type { IComment } from "./Comment";
-import type { ICommentRepository } from "./CommentRepository";
+import type { IComment } from "../Comment.js";
+import type { ICommentRepository } from "./CommentRepository.js";
 
 const SEED_COMMENTS: IComment[] = [
   {

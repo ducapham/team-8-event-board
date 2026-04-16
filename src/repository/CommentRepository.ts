@@ -1,8 +1,7 @@
 // Feature 13 — Event Comments
 // Repository interface for comment storage.
-// Sprint 1 uses in-memory; Sprint 3 swaps in Prisma.
 
-import type { IComment } from "./Comment";
+import type { IComment } from "../Comment.js";
 
 export interface ICommentRepository {
   findByEventId(eventId: number): Promise<IComment[]>;

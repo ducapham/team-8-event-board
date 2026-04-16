@@ -3,18 +3,18 @@
 // No HTTP knowledge here — receives user identity as parameters.
 
 import { randomUUID } from "node:crypto";
-import { Ok, Err, type Result } from "../lib/result";
-import type { IEventRepository } from "../repository/EventRepository";
-import type { IUserRepository } from "../auth/UserRepository";
-import type { ICommentRepository } from "./CommentRepository";
-import type { ICommentWithAuthor } from "./Comment";
+import { Ok, Err, type Result } from "../lib/result.js";
+import type { IEventRepository } from "../repository/EventRepository.js";
+import type { IUserRepository } from "../auth/UserRepository.js";
+import type { ICommentRepository } from "../repository/CommentRepository.js";
+import type { ICommentWithAuthor } from "../Comment.js";
 import {
   EmptyContent,
   CommentEventNotFound,
   CommentNotFound,
   UnauthorizedDeletion,
   type CommentError,
-} from "./errors";
+} from "../lib/commentErrors.js";
 
 export interface ICommentService {
   listComments(eventId: number): Promise<Result<ICommentWithAuthor[], CommentError>>;

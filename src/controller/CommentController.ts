@@ -3,10 +3,10 @@
 // No business logic lives here.
 
 import type { Request, Response } from "express";
-import type { ICommentService } from "./CommentService";
-import type { IEventRepository } from "../repository/EventRepository";
-import type { ILoggingService } from "../service/LoggingService";
-import type { CommentError } from "./errors";
+import type { ICommentService } from "../service/CommentService.js";
+import type { IEventRepository } from "../repository/EventRepository.js";
+import type { ILoggingService } from "../service/LoggingService.js";
+import type { CommentError } from "../lib/commentErrors.js";
 
 export interface ICommentController {
   listComments(res: Response, eventId: number): Promise<void>;
