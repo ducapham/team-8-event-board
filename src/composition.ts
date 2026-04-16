@@ -39,11 +39,17 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const attendeeListService = CreateAttendeeListService(eventRepository, rsvpRepository, authUsers);
   const attendeeListController = CreateAttendeeListController(attendeeListService, resolvedLogger);
 
-  return CreateApp(authController, eventController, resolvedLogger, attendeeListController, eventRepository);
   // Feature 13 — Event Comments wiring
   const commentRepository = CreateInMemoryCommentRepository();
   const commentService = CreateCommentService(eventRepository, commentRepository, authUsers);
   const commentController = CreateCommentController(commentService, eventRepository, resolvedLogger);
 
-  return CreateApp(authController, eventController, resolvedLogger, commentController);
+  return CreateApp(
+    authController,
+    eventController,
+    resolvedLogger,
+    attendeeListController,
+    eventRepository,
+    commentController,
+  );
 }
