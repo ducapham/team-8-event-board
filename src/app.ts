@@ -8,6 +8,7 @@ import {
   AuthorizationRequired,
 } from "./auth/errors";
 import type { UserRole } from "./auth/User";
+import type { IEventController } from "./controller/EventController";
 import { IApp } from "./contracts";
 import {
   getAuthenticatedUser,
@@ -17,6 +18,11 @@ import {
   touchAppSession,
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
+// Feature 12 — Attendee List
+import type { IAttendeeListController } from "./rsvp/AttendeeListController";
+import type { IEventRepository } from "./repository/EventRepository";
+// Feature 13 — Event Comments
+import type { ICommentController } from "./controller/CommentController";
 
 type AsyncRequestHandler = RequestHandler;
 
@@ -35,7 +41,11 @@ class ExpressApp implements IApp {
 
   constructor(
     private readonly authController: IAuthController,
+    private readonly eventController: IEventController,
     private readonly logger: ILoggingService,
+    private readonly attendeeListController?: IAttendeeListController,
+    private readonly eventRepo?: IEventRepository,
+    private readonly commentController?: ICommentController,
   ) {
     this.app = express();
     this.registerMiddleware();
@@ -237,6 +247,178 @@ class ExpressApp implements IApp {
       }),
     );
 
+    // Feature 6 — Category and Date Filter (Duc)
+    // Feature 10 — Event Search (Long)
+    this.app.get(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showEventList(res, browserSession, {
+          category: typeof req.query.category === "string" ? req.query.category : undefined,
+          timeframe: typeof req.query.timeframe === "string" ? req.query.timeframe : undefined,
+          query: typeof req.query.query === "string" ? req.query.query : undefined,
+        });
+      }),
+    );
+
+    // Feature 10 — Event Search (Long)
+    this.app.get(
+      "/events/search",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        const query = typeof req.query.query === "string" ? req.query.query : "";
+        this.logger.info(`GET /events/search for ${browserSession.browserLabel}`);
+        await this.eventController.searchFromHtmx(res, query, browserSession);
+      }),
+    );
+
+    // Feature 1 — Event Creation (Haruki)
+    this.app.get(
+      "/events/new",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        this.eventController.renderCreateForm(req, res);
+      }),
+    );
+
+    // Feature 2 — Event Detail Page (Haruki)
+    this.app.get(
+      "/events/:id",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.").message,
+            layout: false,
+          });
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showEventDetail(
+          res,
+          browserSession,
+          typeof req.params.id === "string" ? req.params.id : "",
+          currentUser,
+        );
+      }),
+    );
+
+    // Feature 5 — Event Publishing and Cancellation (Duc)
+    this.app.post(
+      "/events/:id/publish",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.").message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.publishFromForm(
+          res,
+          touchAppSession(sessionStore(req)),
+          typeof req.params.id === "string" ? req.params.id : "",
+          currentUser,
+        );
+      }),
+    );
+
+    // Feature 11 — Attendee List (Giorgi)
+    this.app.get(
+      "/events/:id/attendees",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showAttendees(
+          res,
+          browserSession,
+          typeof req.params.id === "string" ? req.params.id : ""
+        );
+      }),
+    );
+
+    // Feature 7 — My RSVPs Dashboard (Giorgi)
+    this.app.get(
+      "/my-rsvps",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = recordPageView(sessionStore(req));
+        await this.eventController.showMyRSVPs(res, browserSession);
+      }),
+    );
+
+
+    // Feature 5 — Event Publishing and Cancellation (Duc)
+    this.app.post(
+      "/events/:id/cancel",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const currentUser = getAuthenticatedUser(sessionStore(req));
+        if (!currentUser) {
+          res.status(401).render("partials/error", {
+            message: AuthenticationRequired("Please log in to continue.").message,
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.cancelFromForm(
+          res,
+          touchAppSession(sessionStore(req)),
+          typeof req.params.id === "string" ? req.params.id : "",
+          currentUser,
+        );
+      }),
+    );
+
+    // Feature 4 — RSVP Toggle (Long)
+    this.app.post(
+      "/events/:id/toggle",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = touchAppSession(sessionStore(req));
+        const id = Number(req.params.id);
+        if (Number.isNaN(id)) {
+          res.status(400).render("partials/error", {
+            message: "Invalid event id.",
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.toggleFromForm(res, id, browserSession);
+      }),
+    );
+
     // ── Authenticated home page ──────────────────────────────────────
     // TODO: Replace this placeholder with your project's main page.
 
@@ -252,6 +434,110 @@ class ExpressApp implements IApp {
         res.render("home", { session: browserSession, pageError: null });
       }),
     );
+    this.app.post(
+      "/events/:id/toggle",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) {
+          return;
+        }
+
+        const browserSession = touchAppSession(sessionStore(req));
+        const id = Number(req.params.id);
+        if (Number.isNaN(id)) {
+          res.status(400).render("partials/error", {
+            message: "Invalid event id.",
+            layout: false,
+          });
+          return;
+        }
+
+        await this.eventController.toggleFromForm(res, id, browserSession);
+      }),
+    );
+
+    // ── Feature 12: Attendee List ─────────────────────────────────────
+    if (this.attendeeListController && this.eventRepo) {
+      this.app.get(
+        "/events/:id/attendees",
+        asyncHandler(async (req, res) => {
+          if (!this.requireAuthenticated(req, res)) return;
+          const currentUser = getAuthenticatedUser(sessionStore(req));
+          if (!currentUser) return;
+          const eventId = Number(req.params.id);
+          if (Number.isNaN(eventId)) {
+            res.status(400).render("partials/error", { message: "Invalid event id.", layout: false });
+            return;
+          }
+          const eventResult = await this.eventRepo!.findById(eventId);
+          const eventTitle = eventResult.ok && eventResult.value ? eventResult.value.title : "Event";
+          await this.attendeeListController!.showAttendees(
+            res, eventId, currentUser.userId, currentUser.role, eventTitle, recordPageView(sessionStore(req)),
+          );
+        }),
+      );
+    }
+
+    // ── Feature 13 — Event Comments (Fiona) ─────────────────────────
+
+    if (this.commentController) {
+      // GET /events/:id/comments — load comment list partial (HTMX)
+      this.app.get(
+        "/events/:id/comments",
+        asyncHandler(async (req, res) => {
+          if (!this.requireAuthenticated(req, res)) return;
+          const eventId = Number(req.params.id);
+          if (Number.isNaN(eventId)) {
+            res.status(400).render("partials/error", { message: "Invalid event id.", layout: false });
+            return;
+          }
+          await this.commentController!.listComments(res, eventId);
+        }),
+      );
+
+      // POST /events/:id/comments — submit a new comment (HTMX)
+      this.app.post(
+        "/events/:id/comments",
+        asyncHandler(async (req, res) => {
+          if (!this.requireAuthenticated(req, res)) return;
+          const currentUser = getAuthenticatedUser(sessionStore(req));
+          if (!currentUser) {
+            res.status(401).render("partials/error", { message: "Please log in.", layout: false });
+            return;
+          }
+          const eventId = Number(req.params.id);
+          if (Number.isNaN(eventId)) {
+            res.status(400).render("partials/error", { message: "Invalid event id.", layout: false });
+            return;
+          }
+          await this.commentController!.postComment(req, res, eventId, currentUser.userId);
+        }),
+      );
+
+      // POST /events/:id/comments/:commentId/delete — delete a comment (HTMX)
+      this.app.post(
+        "/events/:id/comments/:commentId/delete",
+        asyncHandler(async (req, res) => {
+          if (!this.requireAuthenticated(req, res)) return;
+          const currentUser = getAuthenticatedUser(sessionStore(req));
+          if (!currentUser) {
+            res.status(401).render("partials/error", { message: "Please log in.", layout: false });
+            return;
+          }
+          const eventId = Number(req.params.id);
+          if (Number.isNaN(eventId)) {
+            res.status(400).render("partials/error", { message: "Invalid event id.", layout: false });
+            return;
+          }
+          await this.commentController!.deleteComment(
+            req, res,
+            typeof req.params.commentId === "string" ? req.params.commentId : "",
+            eventId,
+            currentUser.userId,
+            currentUser.role,
+          );
+        }),
+      );
+    }
 
     // ── Error handler ────────────────────────────────────────────────
 
@@ -263,6 +549,18 @@ class ExpressApp implements IApp {
         layout: false,
       });
     });
+
+    // ── Event routes ─────────────────────────────
+
+    // Feature 1 — Event Creation (Haruki)
+    this.app.post(
+      "/events",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+        await this.eventController.createEvent(req, res);
+      }),
+    );
+
   }
 
   getExpressApp(): express.Express {
@@ -272,7 +570,18 @@ class ExpressApp implements IApp {
 
 export function CreateApp(
   authController: IAuthController,
+  eventController: IEventController,
   logger: ILoggingService,
+  attendeeListController?: IAttendeeListController,
+  eventRepo?: IEventRepository,
+  commentController?: ICommentController,
 ): IApp {
-  return new ExpressApp(authController, logger);
+  return new ExpressApp(
+    authController,
+    eventController,
+    logger,
+    attendeeListController,
+    eventRepo,
+    commentController,
+  );
 }

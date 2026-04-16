@@ -1,0 +1,42 @@
+<div class="container">
+  <h1>Attendees</h1>
+
+  <div class="section">
+    <h2>Going</h2>
+    <% if (going.length === 0) { %>
+      <p class="empty">No attendees yet.</p>
+    <% } else { %>
+      <ul>
+        <% going.forEach(e => { %>
+          <li><%= e.User.displayName %></li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+
+  <div class="section">
+    <h2>Waitlisted</h2>
+    <% if (waitlisted.length === 0) { %>
+      <p class="empty">No one waitlisted.</p>
+    <% } else { %>
+      <ul>
+        <% waitlisted.forEach(e => { %>
+          <li><%= e.User.displayName %></li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+
+  <div class="section">
+    <h2>Cancelled</h2>
+    <% if (cancelled.length === 0) { %>
+      <p class="empty">No cancellations.</p>
+    <% } else { %>
+      <ul>
+        <% cancelled.forEach(e => { %>
+          <li><%= e.User.displayName %></li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+</div>

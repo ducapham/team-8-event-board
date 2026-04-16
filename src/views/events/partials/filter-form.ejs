@@ -1,0 +1,41 @@
+<section class="p-6 border border-slate-200 rounded-2xl bg-white shadow-lg">
+  <form method="get" action="/events" class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 items-end">
+    <div>
+      <label for="category" class="text-sm font-medium">Category</label>
+      <select
+        id="category"
+        name="category"
+        class="mt-1 w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"
+      >
+        <option value="">All categories</option>
+        <% categories.forEach((category) => { %>
+          <option value="<%= category %>" <%= filters.category === category ? 'selected' : '' %>>
+            <%= category.charAt(0).toUpperCase() + category.slice(1) %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div>
+      <label for="timeframe" class="text-sm font-medium">Timeframe</label>
+      <select
+        id="timeframe"
+        name="timeframe"
+        class="mt-1 w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white focus:outline-2 focus:outline-blue-500/20 focus:border-blue-500"
+      >
+        <% timeframes.forEach((timeframe) => { %>
+          <option value="<%= timeframe %>" <%= filters.timeframe === timeframe ? 'selected' : '' %>>
+            <%= timeframe.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+
+    <button
+      type="submit"
+      class="px-4 py-2.5 rounded-xl bg-slate-900 text-white font-medium cursor-pointer hover:bg-slate-800"
+    >
+      Apply filters
+    </button>
+  </form>
+</section>

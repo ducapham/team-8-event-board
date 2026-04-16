@@ -1,0 +1,40 @@
+<section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
+  <div class="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-slate-900 mb-3">Local Event Board</h1>
+      <p class="text-slate-500">
+        Browse upcoming published events and narrow the board by category, timeframe, or search term.
+      </p>
+    </div>
+
+    <form class="w-full sm:w-[320px]" onsubmit="return false;">
+      <label for="event-search" class="text-sm font-medium text-slate-700 mb-2 block">Search events</label>
+      <input
+        id="event-search"
+        name="query"
+        type="search"
+        value="<%= query ?? "" %>"
+        placeholder="Search by title, location, or category"
+        class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+        hx-get="/events/search"
+        hx-trigger="keyup changed delay:250ms"
+        hx-target="#eventList"
+        hx-swap="innerHTML"
+      />
+    </form>
+  </div>
+</section>
+
+<% if (pageError) { %>
+  <%- include("../partials/error", { message: pageError }) %>
+<% } %>
+
+<%- include("partials/filter-form", {
+  categories,
+  timeframes,
+  filters,
+}) %>
+
+<div id="eventList">
+  <%- include("partials/list", { events, session, query }) %>
+</div>

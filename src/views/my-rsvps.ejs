@@ -1,0 +1,41 @@
+<h1>My RSVPs</h1>
+
+<div style="display: flex; gap: 40px; margin-top: 20px;">
+
+  <div>
+    <h2>Going</h2>
+    <ul>
+      <% if (going.length === 0) { %>
+        <li>No events</li>
+      <% } %>
+      <% going.forEach(e => { %>
+        <li><strong><%= e.event.title %></strong></li>
+      <% }) %>
+    </ul>
+  </div>
+
+  <div>
+    <h2>Waitlisted</h2>
+    <ul>
+      <% if (waitlisted.length === 0) { %>
+        <li>No events</li>
+      <% } %>
+      <% waitlisted.forEach(e => { %>
+        <li><strong><%= e.event.title %></strong></li>
+      <% }) %>
+    </ul>
+  </div>
+
+  <div>
+    <h2>Cancelled</h2>
+    <ul>
+      <% if (cancelled.length === 0) { %>
+        <li>No events</li>
+      <% } %>
+      <% cancelled.forEach(e => { %>
+        <li><strong><%= e.event.title %></strong></li>
+      <% }) %>
+    </ul>
+  </div>
+
+</div>
