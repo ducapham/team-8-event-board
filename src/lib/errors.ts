@@ -2,7 +2,11 @@ export type EventError =
   | EventNotFoundError
   | UserNotFoundError
   | UnknownError
-  | UnexpectedDependencyError;
+  | UnexpectedDependencyError
+  | InvalidInputError
+  | ForbiddenError
+  | UnauthorizedEventActionError
+  | InvalidEventTransitionError;
 
 export class EventNotFoundError extends Error {
   constructor(message: string) {
@@ -43,6 +47,20 @@ export class ForbiddenError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ForbiddenError";
+  }
+}
+
+export class UnauthorizedEventActionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnauthorizedEventActionError";
+  }
+}
+
+export class InvalidEventTransitionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidEventTransitionError";
   }
 }
 
