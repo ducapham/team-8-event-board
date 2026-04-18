@@ -1,109 +1,122 @@
-<div class="max-w-3xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
-  <% if (pageError) { %>
-    <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      <%= pageError %>
-    </div>
-  <% } %>
-
-  <% if (!event) { %>
-    <div class="rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-600">
-      <p class="text-lg font-semibold">Event not found</p>
-      <p class="mt-2 text-sm">Please return to the event list and try another event.</p>
-    </div>
-  <% } else { %>
-    <div class="flex items-start justify-between gap-4 mb-6">
-      <div>
-        <p class="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-2">
-          Event Detail
-        </p>
-        <h1 class="text-3xl font-bold text-slate-900"><%= event.title %></h1>
+<div id="event-detail-shell" class="space-y-6">
+  <div class="max-w-3xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+    <% if (pageError) { %>
+      <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <%= pageError %>
       </div>
-      <span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-        <%= event.status %>
-      </span>
-    </div>
+    <% } %>
 
-  <div class="space-y-4 text-slate-700">
-    <div>
-      <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Description</h2>
-      <p><%= event.description %></p>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div>
-        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Location</h2>
-        <p><%= event.location %></p>
+    <% if (!event) { %>
+      <div class="rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-600">
+        <p class="text-lg font-semibold">Event not found</p>
+        <p class="mt-2 text-sm">Please return to the event list and try another event.</p>
       </div>
-
-      <div>
-        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Category</h2>
-        <p><%= event.category %></p>
-      </div>
-
-      <div>
-        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Start Time</h2>
-        <p><%= event.startDatetime.toLocaleString() %></p>
-      </div>
-
-      <div>
-        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">End Time</h2>
-        <p><%= event.endDatetime.toLocaleString() %></p>
-      </div>
-
-      <% if (event.capacity !== undefined) { %>
+    <% } else { %>
+      <div class="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Capacity</h2>
-          <p><%= event.capacity %></p>
+          <p class="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-2">
+            Event Detail
+          </p>
+          <h1 class="text-3xl font-bold text-slate-900"><%= event.title %></h1>
+        </div>
+        <%- include("partials/status-badge", { status: event.status }) %>
+      </div>
+
+      <div class="space-y-4 text-slate-700">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Description</h2>
+          <p><%= event.description %></p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Location</h2>
+            <p><%= event.location %></p>
+          </div>
+
+          <div>
+            <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Category</h2>
+            <p><%= event.category %></p>
+          </div>
+
+          <div>
+            <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Start Time</h2>
+            <p><%= event.startDatetime.toLocaleString() %></p>
+          </div>
+
+          <div>
+            <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">End Time</h2>
+            <p><%= event.endDatetime.toLocaleString() %></p>
+          </div>
+
+          <% if (event.capacity !== undefined) { %>
+            <div>
+              <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Capacity</h2>
+              <p><%= event.capacity %></p>
+            </div>
+          <% } %>
+
+          <div>
+            <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Organizer ID</h2>
+            <p><%= event.organizerId %></p>
+          </div>
+        </div>
+
+        <% if (permissions?.canPublish || permissions?.canCancel) { %>
+          <div class="mt-6 flex flex-wrap gap-3">
+            <% if (permissions.canPublish) { %>
+              <form
+                method="post"
+                action="/events/<%= event.id %>/publish"
+                class="m-0"
+                hx-post="/events/<%= event.id %>/publish"
+                hx-target="#event-detail-shell"
+                hx-swap="outerHTML"
+              >
+                <button type="submit" class="rounded-2xl bg-blue-600 px-5 py-3 text-white font-semibold hover:bg-blue-700">
+                  Publish Event
+                </button>
+              </form>
+            <% } %>
+
+            <% if (permissions.canCancel) { %>
+              <form
+                method="post"
+                action="/events/<%= event.id %>/cancel"
+                class="m-0"
+                hx-post="/events/<%= event.id %>/cancel"
+                hx-target="#event-detail-shell"
+                hx-swap="outerHTML"
+              >
+                <button type="submit" class="rounded-2xl bg-red-600 px-5 py-3 text-white font-semibold hover:bg-red-700">
+                  Cancel Event
+                </button>
+              </form>
+            <% } %>
+          </div>
+        <% } %>
+      </div>
+      <%# Feature 12 — Link to attendee list (organizer/admin only) %>
+      <% if (session?.authenticatedUser && (session.authenticatedUser.role === 'admin' || session.authenticatedUser.userId === event.organizerId)) { %>
+        <div class="mt-6">
+          <a href="/events/<%= event.id %>/attendees"
+             class="inline-block rounded-xl bg-slate-700 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+            View Attendee List
+          </a>
         </div>
       <% } %>
+    <% } %>
+  </div>
 
-      <div>
-        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Organizer ID</h2>
-        <p><%= event.organizerId %></p>
-      </div>
+  <%# Feature 13 — Event Comments: loads the comment list via HTMX on page load %>
+  <% if (event) { %>
+    <div
+      class="max-w-3xl mx-auto"
+      hx-get="/events/<%= event.id %>/comments"
+      hx-trigger="load"
+      hx-swap="innerHTML"
+    >
+      <p class="text-sm text-slate-400 italic">Loading comments…</p>
     </div>
-
-    <% if (permissions?.canPublish || permissions?.canCancel) { %>
-      <div class="mt-6 flex flex-wrap gap-3">
-        <% if (permissions.canPublish) { %>
-          <form method="post" action="/events/<%= event.id %>/publish" class="m-0">
-            <button type="submit" class="rounded-2xl bg-blue-600 px-5 py-3 text-white font-semibold hover:bg-blue-700">
-              Publish Event
-            </button>
-          </form>
-        <% } %>
-
-        <% if (permissions.canCancel) { %>
-          <form method="post" action="/events/<%= event.id %>/cancel" class="m-0">
-            <button type="submit" class="rounded-2xl bg-red-600 px-5 py-3 text-white font-semibold hover:bg-red-700">
-              Cancel Event
-            </button>
-          </form>
-        <% } %>
-      </div>
-    <% } %>
-  </div>
-  <%# Feature 12 — Link to attendee list (organizer/admin only) %>
-    <% if (session?.authenticatedUser && (session.authenticatedUser.role === 'admin' || session.authenticatedUser.userId === event.organizerId)) { %>
-      <div class="mt-6">
-        <a href="/events/<%= event.id %>/attendees"
-           class="inline-block rounded-xl bg-slate-700 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-          View Attendee List
-        </a>
-      </div>
-    <% } %>
-  </div>
-<% } %>
+  <% } %>
 </div>
-
-<%# Feature 13 — Event Comments: loads the comment list via HTMX on page load %>
-<% if (event) { %>
-  <div
-    class="max-w-3xl mx-auto mt-6"
-    hx-get="/events/<%= event.id %>/comments"
-    hx-trigger="load"
-    hx-swap="innerHTML"
-  >
-    <p class="text-sm text-slate-400 italic">Loading comments…</p>
-  </div>
-<% } %>
