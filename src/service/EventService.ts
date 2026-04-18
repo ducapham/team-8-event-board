@@ -11,6 +11,8 @@ import {
   EventNotFoundError,
   ForbiddenError,
   InvalidInputError,
+  InvalidEventTransitionError,
+  UnauthorizedEventActionError,
   UnexpectedDependencyError,
   UnknownError,
 } from "../lib/errors.js";
@@ -411,11 +413,11 @@ class EventService implements IEventService {
     }
 
     if (!isAdmin(actor) && !isOwner(eventLookup.value, actor)) {
-      return Err(new ForbiddenError("Only the organizer or an admin can publish this event."));
+      return Err(new UnauthorizedEventActionError("Only the organizer or an admin can publish this event."));
     }
 
     if (eventLookup.value.status !== "draft") {
-      return Err(new InvalidInputError("Only draft events can be published."));
+      return Err(new InvalidEventTransitionError("Only draft events can be published."));
     }
 
     const updatedEvent: IEvent = {
@@ -451,11 +453,11 @@ class EventService implements IEventService {
     }
 
     if (!isAdmin(actor) && !isOwner(eventLookup.value, actor)) {
-      return Err(new ForbiddenError("Only the organizer or an admin can cancel this event."));
+      return Err(new UnauthorizedEventActionError("Only the organizer or an admin can cancel this event."));
     }
 
     if (eventLookup.value.status !== "published") {
-      return Err(new InvalidInputError("Only published events can be cancelled."));
+      return Err(new InvalidEventTransitionError("Only published events can be cancelled."));
     }
 
     const updatedEvent: IEvent = {
