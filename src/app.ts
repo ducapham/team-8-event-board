@@ -354,6 +354,7 @@ class ExpressApp implements IApp {
           touchAppSession(sessionStore(req)),
           typeof req.params.id === "string" ? req.params.id : "",
           currentUser,
+          this.isHtmxRequest(req),
         );
       }),
     );
@@ -394,6 +395,7 @@ class ExpressApp implements IApp {
           touchAppSession(sessionStore(req)),
           typeof req.params.id === "string" ? req.params.id : "",
           currentUser,
+          this.isHtmxRequest(req),
         );
       }),
     );
