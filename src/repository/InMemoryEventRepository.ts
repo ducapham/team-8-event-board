@@ -1,9 +1,9 @@
 import type { IEventRepository } from "./EventRepository.js";
 import type { IEvent } from "../event.js";
+import type { IUserRepository } from "../auth/UserRepository.js";
 import { Err, Ok, type Result } from "../lib/result.js";
 import { EventError, EventNotFoundError, UserNotFoundError, UnexpectedDependencyError } from "../lib/errors.js";
-import { IUserRecord } from "../auth/User.js";
-import { DEMO_USERS } from "../auth/InMemoryUserRepository.js";
+import type { IUserRecord } from "../auth/User.js";
 
 function startOfDay(value: Date): Date {
   const nextValue = new Date(value.getTime());
@@ -178,12 +178,12 @@ function buildDemoEvents(now: Date = new Date()): IEvent[] {
   ];
 }
 
-type RSVPStatus = "Registered" | "Waitlisted" | "Not Registered";
+type RSVPStatus = "Registered" | "Waitlisted" | "Not Registered" | "Cancelled";
 
 class InMemoryEventRepository implements IEventRepository {
   constructor(
     private events: IEvent[],
-    private users: IUserRecord[],
+    private userRepo: IUserRepository,
     private summary: Array<{ id: number; date: Date; time: string; status: RSVPStatus; Event: IEvent; User: IUserRecord }>,
   ) {}
 
@@ -225,30 +225,60 @@ class InMemoryEventRepository implements IEventRepository {
     if (!event) {
       return Err(new EventNotFoundError(`Event with ID ${eventId} not found`));
     }
-    const user = this.users.find((u) => u.id === userId);
-    if (!user) {
+    const userResult = await this.userRepo.findById(userId);
+    if (!userResult.ok || !userResult.value) {
       return Err(new UserNotFoundError(`User with ID ${userId} not found`));
     }
+    const user = userResult.value;
 
-    const existingSummary = this.summary.find((s) => s.Event.id === eventId && s.User.id === userId);
+    const existingSummaryIndex = this.summary.findIndex((s) => s.Event.id === eventId && s.User.id === userId);
+    const existingSummary = existingSummaryIndex >= 0 ? this.summary[existingSummaryIndex] : null;
     const status: RSVPStatus = existingSummary?.status ?? "Not Registered";
     const hasCapacity = event.capacity === undefined || event.attendees.length < event.capacity;
 
-    if (status === "Not Registered" && hasCapacity) {
-      event.attendees.push(user);
-      this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Registered", Event: event, User: user });
-    } else if (status === "Not Registered") {
-      event.waitlist.push(user);
-      this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Waitlisted", Event: event, User: user });
+    if (status === "Not Registered") {
+      // User never registered, now registering
+      if (hasCapacity) {
+        event.attendees.push(user);
+        this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Registered", Event: event, User: user });
+      } else {
+        event.waitlist.push(user);
+        this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Waitlisted", Event: event, User: user });
+      }
     } else if (status === "Registered") {
+      // User was going, now cancelling
       event.attendees = event.attendees.filter((u) => u.id !== userId);
-      this.summary = this.summary.filter((s) => !(s.Event.id === eventId && s.User.id === userId));
+      if (existingSummary) {
+        existingSummary.status = "Cancelled";
+      }
+      // Promote next waitlisted user
       if (event.waitlist.length > 0) {
         const nextUser = event.waitlist.shift();
         if (nextUser) {
           event.attendees.push(nextUser);
-          this.summary = this.summary.filter((s) => !(s.Event.id === eventId && s.User.id === nextUser.id));
-          this.summary.push({ id: this.summary.length + 1, date: event.date, time: event.time, status: "Registered", Event: event, User: nextUser });
+          const nextSummaryIndex = this.summary.findIndex((s) => s.Event.id === eventId && s.User.id === nextUser.id);
+          if (nextSummaryIndex >= 0) {
+            this.summary[nextSummaryIndex].status = "Registered";
+          }
+        }
+      }
+    } else if (status === "Waitlisted") {
+      // User was waitlisted, now cancelling
+      event.waitlist = event.waitlist.filter((u) => u.id !== userId);
+      if (existingSummary) {
+        existingSummary.status = "Cancelled";
+      }
+    } else if (status === "Cancelled") {
+      // User already cancelled, re-registering
+      if (hasCapacity) {
+        event.attendees.push(user);
+        if (existingSummary) {
+          existingSummary.status = "Registered";
+        }
+      } else {
+        event.waitlist.push(user);
+        if (existingSummary) {
+          existingSummary.status = "Waitlisted";
         }
       }
     }
@@ -282,7 +312,7 @@ class InMemoryEventRepository implements IEventRepository {
     return {
       going: filtered.filter((s) => s.status === "Registered"),
       waitlisted: filtered.filter((s) => s.status === "Waitlisted"),
-      cancelled: filtered.filter((s) => s.status === "Not Registered"),
+      cancelled: filtered.filter((s) => s.status === "Cancelled"),
     };
   }
 
@@ -301,6 +331,6 @@ async getRSVPsByUser(userId: string) {
 
 }
 
-export function CreateInMemoryEventRepository(): IEventRepository {
-  return new InMemoryEventRepository(buildDemoEvents(), DEMO_USERS, []);
+export function CreateInMemoryEventRepository(userRepo: IUserRepository): IEventRepository {
+  return new InMemoryEventRepository(buildDemoEvents(), userRepo, []);
 }

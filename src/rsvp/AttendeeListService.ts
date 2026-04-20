@@ -4,8 +4,6 @@
 
 import { Ok, Err, type Result } from "../lib/result";
 import type { IEventRepository } from "../repository/EventRepository";
-import type { IRsvpRepository } from "./RsvpRepository";
-import type { IUserRepository } from "../auth/UserRepository";
 import type { RsvpStatus } from "./Rsvp";
 import { EventNotFound, UnauthorizedAttendeeList, type AttendeeListError } from "./errors";
 
@@ -33,8 +31,6 @@ export interface IAttendeeListService {
 class AttendeeListService implements IAttendeeListService {
   constructor(
     private readonly eventRepo: IEventRepository,
-    private readonly rsvpRepo: IRsvpRepository,
-    private readonly userRepo: IUserRepository,
   ) {}
 
   async getGroupedAttendees(
@@ -56,30 +52,31 @@ class AttendeeListService implements IAttendeeListService {
       return Err(UnauthorizedAttendeeList());
     }
 
-    // 3. Fetch all RSVPs for this event.
-    const rsvps = await this.rsvpRepo.findByEventId(eventId);
+    // 3. Use repository grouped attendee summary so cancelled is included.
+    const grouped = await this.eventRepo.getGroupedAttendees(eventId);
 
-    // 4. Join each RSVP with the attendee's display name.
-    const entries: IAttendeeEntry[] = [];
-    for (const rsvp of rsvps) {
-      const userResult = await this.userRepo.findById(rsvp.userId);
-      const displayName =
-        userResult.ok && userResult.value ? userResult.value.displayName : "Unknown User";
-      entries.push({ userId: rsvp.userId, displayName, status: rsvp.status, createdAt: rsvp.createdAt });
-    }
+    const normalize = (entry: any): IAttendeeEntry => ({
+      userId: entry.User.id,
+      displayName: entry.User.displayName ?? "Unknown User",
+      status:
+        entry.status === "Registered"
+          ? "going"
+          : entry.status === "Waitlisted"
+          ? "waitlisted"
+          : "cancelled",
+      createdAt: entry.date instanceof Date ? entry.date : new Date(entry.date),
+    });
 
-    // 5. Group by status, sorted by createdAt ascending within each group.
-    const byStatus = (s: RsvpStatus) =>
-      entries.filter((e) => e.status === s).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-
-    return Ok({ going: byStatus("going"), waitlisted: byStatus("waitlisted"), cancelled: byStatus("cancelled") });
+    return Ok({
+      going: grouped.going.map(normalize),
+      waitlisted: grouped.waitlisted.map(normalize),
+      cancelled: grouped.cancelled.map(normalize),
+    });
   }
 }
 
 export function CreateAttendeeListService(
   eventRepo: IEventRepository,
-  rsvpRepo: IRsvpRepository,
-  userRepo: IUserRepository,
 ): IAttendeeListService {
-  return new AttendeeListService(eventRepo, rsvpRepo, userRepo);
+  return new AttendeeListService(eventRepo);
 }
