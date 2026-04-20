@@ -31,12 +31,14 @@ export interface IEventController {
     session: IAppBrowserSession,
     eventId: string,
     actor: IAuthenticatedUserSession,
+    isHtmxRequest?: boolean,
   ): Promise<void>;
   cancelFromForm(
     res: Response,
     session: IAppBrowserSession,
     eventId: string,
     actor: IAuthenticatedUserSession,
+    isHtmxRequest?: boolean,
   ): Promise<void>;
   searchFromHtmx(res: Response, query: string, session: IAppBrowserSession): Promise<void>;
   toggleFromForm(res: Response, eventId: number, session: IAppBrowserSession, redirectOnSuccess?: boolean): Promise<void>;
@@ -44,17 +46,18 @@ export interface IEventController {
   createEvent(req: Request, res: Response): Promise<void>;
   getEventDetail(req: Request, res: Response): Promise<void>;
   showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void>;
-  showAttendees(
-  res: Response,
-  session: IAppBrowserSession,
-  eventId: string
-): Promise<void>;
+  showArchive(
+    res: Response,
+    session: IAppBrowserSession,
+    category?: string
+  ): Promise<void>;
 }
 
 class EventController implements IEventController {
   constructor(
     private readonly service: IEventService,
     private readonly logger: ILoggingService,
+    
   ) {}
 
   private isErrorResult<T>(result: { ok: false; value: EventError } | { ok: true; value: T }): result is { ok: false; value: EventError } {
@@ -64,6 +67,8 @@ class EventController implements IEventController {
   private mapErrorStatus(error: EventError): number {
     if (error.name === "EventNotFoundError") return 404;
     if (error.name === "ForbiddenError") return 403;
+    if (error.name === "UnauthorizedEventActionError") return 403;
+    if (error.name === "InvalidEventTransitionError") return 409;
     if (error.name === "InvalidInputError") return 400;
     return 500;
   }
@@ -98,13 +103,54 @@ class EventController implements IEventController {
     detailResult: EventDetailResult | null,
     pageError: string | null,
     status: number,
+    options?: { layout?: boolean },
   ): Promise<void> {
     res.status(status).render("events/detail", {
       pageError,
       session,
       event: detailResult?.event ?? null,
       permissions: detailResult?.permissions ?? { canPublish: false, canCancel: false },
+      ...(options?.layout === false ? { layout: false } : {}),
     });
+  }
+
+  private async renderLifecycleResponse(
+    res: Response,
+    session: IAppBrowserSession,
+    eventId: string,
+    actor: IAuthenticatedUserSession,
+    pageError: string | null,
+    status: number,
+    isHtmxRequest: boolean,
+  ): Promise<void> {
+    const detailResult = await this.service.getEventDetail(eventId, {
+      userId: actor.userId,
+      role: actor.role,
+    });
+
+    if (detailResult.ok === false) {
+      const detailStatus = this.mapErrorStatus(detailResult.value);
+      const log = detailStatus >= 500 ? this.logger.error : this.logger.warn;
+      log.call(this.logger, `Load lifecycle detail failed: ${detailResult.value.message}`);
+      await this.renderDetailPage(
+        res,
+        session,
+        null,
+        pageError ?? detailResult.value.message,
+        detailStatus,
+        { layout: !isHtmxRequest },
+      );
+      return;
+    }
+
+    await this.renderDetailPage(
+      res,
+      session,
+      detailResult.value,
+      pageError,
+      status,
+      { layout: !isHtmxRequest },
+    );
   }
 
   // Feature 6 — Category and Date Filter (Duc)
@@ -160,6 +206,7 @@ class EventController implements IEventController {
     session: IAppBrowserSession,
     eventId: string,
     actor: IAuthenticatedUserSession,
+    isHtmxRequest = false,
   ): Promise<void> {
     const result = await this.service.publishEvent(eventId, {
       userId: actor.userId,
@@ -170,20 +217,24 @@ class EventController implements IEventController {
       const status = this.mapErrorStatus(result.value);
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Publish event failed: ${result.value.message}`);
-      const detailResult = await this.service.getEventDetail(eventId, {
-        userId: actor.userId,
-        role: actor.role,
-      });
-      if (detailResult.ok === true) {
-        await this.renderDetailPage(res, session, detailResult.value, result.value.message, status);
-        return;
-      }
-
-      await this.renderDetailPage(res, session, null, result.value.message, status);
+      await this.renderLifecycleResponse(
+        res,
+        session,
+        eventId,
+        actor,
+        result.value.message,
+        status,
+        isHtmxRequest,
+      );
       return;
     }
 
     this.logger.info(`Published event ${eventId}`);
+    if (isHtmxRequest) {
+      await this.renderLifecycleResponse(res, session, eventId, actor, null, 200, true);
+      return;
+    }
+
     res.redirect(`/events/${eventId}`);
   }
 
@@ -193,6 +244,7 @@ class EventController implements IEventController {
     session: IAppBrowserSession,
     eventId: string,
     actor: IAuthenticatedUserSession,
+    isHtmxRequest = false,
   ): Promise<void> {
     const result = await this.service.cancelEvent(eventId, {
       userId: actor.userId,
@@ -203,20 +255,24 @@ class EventController implements IEventController {
       const status = this.mapErrorStatus(result.value);
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Cancel event failed: ${result.value.message}`);
-      const detailResult = await this.service.getEventDetail(eventId, {
-        userId: actor.userId,
-        role: actor.role,
-      });
-      if (detailResult.ok === true) {
-        await this.renderDetailPage(res, session, detailResult.value, result.value.message, status);
-        return;
-      }
-
-      await this.renderDetailPage(res, session, null, result.value.message, status);
+      await this.renderLifecycleResponse(
+        res,
+        session,
+        eventId,
+        actor,
+        result.value.message,
+        status,
+        isHtmxRequest,
+      );
       return;
     }
 
     this.logger.info(`Cancelled event ${eventId}`);
+    if (isHtmxRequest) {
+      await this.renderLifecycleResponse(res, session, eventId, actor, null, 200, true);
+      return;
+    }
+
     res.redirect(`/events/${eventId}`);
   }
 
@@ -411,36 +467,27 @@ class EventController implements IEventController {
     });
   }
 
-  // Feature 11 — Attendee List (Giorgi)
-  async showAttendees(
+  // Feature 11 — Past Event Archiving (Giorgi)
+  
+  async showArchive(
     res: Response,
     session: IAppBrowserSession,
-    eventId: string
+    category?: string
   ): Promise<void> {
-    const user = session.authenticatedUser;
-
-    const result = await this.service.getGroupedAttendees(
-      Number(eventId),
-      user?.userId ?? "",
-      user?.role ?? "user"
-    );
+    const result = await this.service.getArchivedEvents(category);
 
     if (result.ok === false) {
-      return res.status(403).render("attendees", {
+      return res.status(500).render("archive", {
         pageError: result.value.message,
         session,
-        going: [],
-        waitlisted: [],
-        cancelled: [],
+        events: [],
       });
     }
 
-    return res.render("attendees", {
+    return res.render("archive", {
       pageError: null,
       session,
-      going: result.value.going,
-      waitlisted: result.value.waitlisted,
-      cancelled: result.value.cancelled,
+      events: result.value,
     });
   }
 

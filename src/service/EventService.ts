@@ -11,6 +11,8 @@ import {
   EventNotFoundError,
   ForbiddenError,
   InvalidInputError,
+  InvalidEventTransitionError,
+  UnauthorizedEventActionError,
   UnexpectedDependencyError,
   UnknownError,
 } from "../lib/errors.js";
@@ -74,11 +76,8 @@ export interface IEventService {
   getEventDetail(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
   publishEvent(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
   cancelEvent(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
-  getGroupedAttendees(
-    eventId: number,
-    userId: string,
-    role: string
-  ): Promise<Result<any, EventError>>;
+  getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>>;
+
 }
 
 
@@ -414,11 +413,11 @@ class EventService implements IEventService {
     }
 
     if (!isAdmin(actor) && !isOwner(eventLookup.value, actor)) {
-      return Err(new ForbiddenError("Only the organizer or an admin can publish this event."));
+      return Err(new UnauthorizedEventActionError("Only the organizer or an admin can publish this event."));
     }
 
     if (eventLookup.value.status !== "draft") {
-      return Err(new InvalidInputError("Only draft events can be published."));
+      return Err(new InvalidEventTransitionError("Only draft events can be published."));
     }
 
     const updatedEvent: IEvent = {
@@ -454,11 +453,11 @@ class EventService implements IEventService {
     }
 
     if (!isAdmin(actor) && !isOwner(eventLookup.value, actor)) {
-      return Err(new ForbiddenError("Only the organizer or an admin can cancel this event."));
+      return Err(new UnauthorizedEventActionError("Only the organizer or an admin can cancel this event."));
     }
 
     if (eventLookup.value.status !== "published") {
-      return Err(new InvalidInputError("Only published events can be cancelled."));
+      return Err(new InvalidEventTransitionError("Only published events can be cancelled."));
     }
 
     const updatedEvent: IEvent = {
@@ -478,28 +477,25 @@ class EventService implements IEventService {
     });
   }
 
-  // Feature 11 — Attendee List (Giorgi)
-  async getGroupedAttendees(
-    eventId: number,
-    userId: string,
-    role: string
-  ): Promise<Result<any, EventError>> {
+  // Feature 11 — Past Event Archiving (Giorgi)
+  async getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>> {
+    const result = await this.repo.listEvents();
 
-    const eventResult = await this.repo.findById(eventId);
-
-    if (!eventResult.ok || !eventResult.value) {
-      return Err(new EventNotFoundError("Event not found"));
+    if (result.ok === false) {
+      return result;
     }
 
-    const event = eventResult.value;
+    const now = new Date();
 
-    if (!(role === "admin" || event.organizerId === userId)) {
-      return Err(new ForbiddenError("Not allowed to view attendees"));
-    }
+    const pastEvents = result.value
+      .map(e => resolveEventStatus(e, now))
+      .filter(e =>
+        e.status === "past" &&
+        (!category || e.category.toLowerCase() === category.toLowerCase())
+      )
+      .sort((a, b) => b.startDatetime.getTime() - a.startDatetime.getTime());
 
-    const grouped = await this.repo.getGroupedAttendees(eventId);
-
-    return Ok(grouped);
+    return Ok(pastEvents);
   }
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
