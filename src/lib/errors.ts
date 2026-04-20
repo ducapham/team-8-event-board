@@ -6,6 +6,7 @@ export type EventError =
   | InvalidInputError
   | ForbiddenError
   | UnauthorizedEventActionError
+  | RSVPNotAllowedError
   | InvalidEventTransitionError;
 
 export class EventNotFoundError extends Error {
@@ -54,6 +55,13 @@ export class UnauthorizedEventActionError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "UnauthorizedEventActionError";
+  }
+}
+
+export class RSVPNotAllowedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RSVPNotAllowedError";
   }
 }
 
