@@ -418,7 +418,8 @@ class ExpressApp implements IApp {
           return;
         }
 
-        await this.eventController.toggleFromForm(res, id, browserSession);
+        const isHtmx = this.isHtmxRequest(req);
+        await this.eventController.toggleFromForm(res, id, browserSession, !isHtmx);
       }),
     );
 
@@ -437,27 +438,6 @@ class ExpressApp implements IApp {
         res.render("home", { session: browserSession, pageError: null });
       }),
     );
-    this.app.post(
-      "/events/:id/toggle",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const browserSession = touchAppSession(sessionStore(req));
-        const id = Number(req.params.id);
-        if (Number.isNaN(id)) {
-          res.status(400).render("partials/error", {
-            message: "Invalid event id.",
-            layout: false,
-          });
-          return;
-        }
-
-        await this.eventController.toggleFromForm(res, id, browserSession);
-      }),
-    );
-
     // ── Feature 12: Attendee List ─────────────────────────────────────
     if (this.attendeeListController && this.eventRepo) {
       this.app.get(
