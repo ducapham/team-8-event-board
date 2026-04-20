@@ -1,6 +1,6 @@
 import request from "supertest";
 import type { Express } from "express";
-import { createExposedApp } from "./ExposedComposition";
+import { createExposedApp } from "../ExposedComposition";
 import { IEventRepository } from "../../src/repository/EventRepository";
 import { ICommentRepository } from "../../src/repository/CommentRepository";
 
