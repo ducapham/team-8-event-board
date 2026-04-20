@@ -74,6 +74,7 @@ describe("Event Search behavior", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.some((e) => e.id === 1)).toBe(true);
+    expect(result.value.some((e) => e.id === 2)).toBe(false);
   });
 
   // ── Location match ───────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ describe("Event Search behavior", () => {
     if (!result.ok) return;
     // id 1 – Community Picnic is at Riverside Park.
     expect(result.value.some((e) => e.id === 1)).toBe(true);
+    expect(result.value.some((e) => e.id === 2)).toBe(false);
   });
 
   // ── Description match ────────────────────────────────────────────────────
@@ -100,6 +102,7 @@ describe("Event Search behavior", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.some((e) => e.id === 2)).toBe(true);
+    expect(result.value.some((e) => e.id === 1)).toBe(false);
   });
 
   // ── Category match ───────────────────────────────────────────────────────
