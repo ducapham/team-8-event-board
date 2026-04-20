@@ -4,7 +4,6 @@
 
 import { Ok, Err, type Result } from "../lib/result";
 import type { IEventRepository } from "../repository/EventRepository";
-import type { IUserRepository } from "../auth/UserRepository";
 import type { RsvpStatus } from "./Rsvp";
 import { EventNotFound, UnauthorizedAttendeeList, type AttendeeListError } from "./errors";
 
@@ -32,7 +31,6 @@ export interface IAttendeeListService {
 class AttendeeListService implements IAttendeeListService {
   constructor(
     private readonly eventRepo: IEventRepository,
-    private readonly userRepo: IUserRepository,
   ) {}
 
   async getGroupedAttendees(
@@ -54,46 +52,31 @@ class AttendeeListService implements IAttendeeListService {
       return Err(UnauthorizedAttendeeList());
     }
 
-    // 3. Build attendee entries from event's attendees and waitlist.
-    const entries: IAttendeeEntry[] = [];
+    // 3. Use repository grouped attendee summary so cancelled is included.
+    const grouped = await this.eventRepo.getGroupedAttendees(eventId);
 
-    // Add "going" attendees
-    for (const attendee of event.attendees) {
-      const userResult = await this.userRepo.findById(attendee.id);
-      const displayName =
-        userResult.ok && userResult.value ? userResult.value.displayName : attendee.displayName || "Unknown User";
-      entries.push({
-        userId: attendee.id,
-        displayName,
-        status: "going",
-        createdAt: new Date(),
-      });
-    }
+    const normalize = (entry: any): IAttendeeEntry => ({
+      userId: entry.User.id,
+      displayName: entry.User.displayName ?? "Unknown User",
+      status:
+        entry.status === "Registered"
+          ? "going"
+          : entry.status === "Waitlisted"
+          ? "waitlisted"
+          : "cancelled",
+      createdAt: entry.date instanceof Date ? entry.date : new Date(entry.date),
+    });
 
-    // Add "waitlisted" attendees
-    for (const waitlisted of event.waitlist) {
-      const userResult = await this.userRepo.findById(waitlisted.id);
-      const displayName =
-        userResult.ok && userResult.value ? userResult.value.displayName : waitlisted.displayName || "Unknown User";
-      entries.push({
-        userId: waitlisted.id,
-        displayName,
-        status: "waitlisted",
-        createdAt: new Date(),
-      });
-    }
-
-    // 4. Group by status (no cancelled tracking in EventRepository).
-    const byStatus = (s: RsvpStatus) =>
-      entries.filter((e) => e.status === s).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-
-    return Ok({ going: byStatus("going"), waitlisted: byStatus("waitlisted"), cancelled: [] });
+    return Ok({
+      going: grouped.going.map(normalize),
+      waitlisted: grouped.waitlisted.map(normalize),
+      cancelled: grouped.cancelled.map(normalize),
+    });
   }
 }
 
 export function CreateAttendeeListService(
   eventRepo: IEventRepository,
-  userRepo: IUserRepository,
 ): IAttendeeListService {
-  return new AttendeeListService(eventRepo, userRepo);
+  return new AttendeeListService(eventRepo);
 }

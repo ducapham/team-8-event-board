@@ -506,7 +506,7 @@ class EventService implements IEventService {
       return Ok({
         going: data.filter((d: any) => d.status === "Registered"),
         waitlisted: data.filter((d: any) => d.status === "Waitlisted"),
-        cancelled: data.filter((d: any) => d.status === "Not Registered"),
+        cancelled: data.filter((d: any) => d.status === "Cancelled"),
       });
     } catch {
       return Err(new UnknownError("Failed to fetch RSVPs"));
