@@ -68,6 +68,7 @@ class EventController implements IEventController {
     if (error.name === "EventNotFoundError") return 404;
     if (error.name === "ForbiddenError") return 403;
     if (error.name === "UnauthorizedEventActionError") return 403;
+    if (error.name === "RSVPNotAllowedError") return 403;
     if (error.name === "InvalidEventTransitionError") return 409;
     if (error.name === "InvalidInputError") return 400;
     return 500;
@@ -349,12 +350,12 @@ class EventController implements IEventController {
       const status = this.mapErrorStatus(result.value);
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `Event RSVP toggle failed: ${result.value.message}`);
-      res.status(status);
       await this.renderEventListPartial(
         res,
         session,
         { category: undefined, timeframe: undefined, query: undefined },
         result.value.message,
+        status,
       );
       return;
     }

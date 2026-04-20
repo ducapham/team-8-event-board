@@ -334,7 +334,11 @@ class EventService implements IEventService {
 
     const filteredEvents = eventsResult.value
       .map((event) => resolveEventStatus(event, now))
-      .filter((event) => event.status === "published" && event.startDatetime.getTime() >= now.getTime())
+      .filter((event) => {
+        const eventIsOwnedDraft = event.status === "draft" && viewerId !== undefined && event.organizerId === viewerId;
+        const eventIsPublishedUpcoming = event.status === "published" && event.startDatetime.getTime() >= now.getTime();
+        return eventIsPublishedUpcoming || eventIsOwnedDraft;
+      })
       .filter((event) => (filters.category ? event.category.toLowerCase() === filters.category : true))
       .filter((event) => {
         if (filters.timeframe === "this-week") {

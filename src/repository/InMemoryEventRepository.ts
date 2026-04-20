@@ -2,7 +2,7 @@ import type { IEventRepository } from "./EventRepository.js";
 import type { IEvent } from "../event.js";
 import type { IUserRepository } from "../auth/UserRepository.js";
 import { Err, Ok, type Result } from "../lib/result.js";
-import { EventError, EventNotFoundError, UserNotFoundError, UnexpectedDependencyError } from "../lib/errors.js";
+import { EventError, EventNotFoundError, UserNotFoundError, RSVPNotAllowedError, UnexpectedDependencyError } from "../lib/errors.js";
 import type { IUserRecord } from "../auth/User.js";
 
 function startOfDay(value: Date): Date {
@@ -116,7 +116,7 @@ function buildDemoEvents(now: Date = new Date()): IEvent[] {
       organizerId: "user-staff",
       attendees: [],
       waitlist: [],
-      capacity: 80,
+      capacity: 1,
       createdAt,
       updatedAt: createdAt,
       status: "published",
@@ -234,6 +234,18 @@ class InMemoryEventRepository implements IEventRepository {
     const existingSummaryIndex = this.summary.findIndex((s) => s.Event.id === eventId && s.User.id === userId);
     const existingSummary = existingSummaryIndex >= 0 ? this.summary[existingSummaryIndex] : null;
     const status: RSVPStatus = existingSummary?.status ?? "Not Registered";
+    const now = new Date();
+    const eventIsPast = event.endDatetime.getTime() < now.getTime();
+
+    if (event.status === "cancelled") {
+      return Err(new RSVPNotAllowedError("Cannot RSVP to a cancelled event."));
+    }
+
+    if (eventIsPast) {
+      return Err(new RSVPNotAllowedError("Cannot RSVP to a past event."));
+    }
+
+
     const hasCapacity = event.capacity === undefined || event.attendees.length < event.capacity;
 
     if (status === "Not Registered") {
