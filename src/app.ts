@@ -19,7 +19,7 @@ import {
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
 // Feature 12 — Attendee List
-import type { IAttendeeListController } from "./rsvp/AttendeeListController";
+import type { IAttendeeListController } from "./controller/AttendeeListController";
 import type { IEventRepository } from "./repository/EventRepository";
 // Feature 13 — Event Comments
 import type { ICommentController } from "./controller/CommentController";

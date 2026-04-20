@@ -3,9 +3,9 @@
 // No business logic lives here.
 
 import type { Response } from "express";
-import type { IAttendeeListService } from "./AttendeeListService";
+import type { IAttendeeListService } from "../service/AttendeeListService";
 import type { ILoggingService } from "../service/LoggingService";
-import type { AttendeeListError } from "./errors";
+import type { AttendeeListError } from "../AttendeeListErrors";
 import type { IAppBrowserSession } from "../session/AppSession";
 
 export interface IAttendeeListController {

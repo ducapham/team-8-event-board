@@ -4,8 +4,8 @@
 
 import { Ok, Err, type Result } from "../lib/result";
 import type { IEventRepository } from "../repository/EventRepository";
-import type { RsvpStatus } from "./Rsvp";
-import { EventNotFound, UnauthorizedAttendeeList, type AttendeeListError } from "./errors";
+import type { RsvpStatus } from "../Rsvp";
+import { EventNotFound, UnauthorizedAttendeeList, type AttendeeListError } from "../AttendeeListErrors.js";
 
 export interface IAttendeeEntry {
   userId: string;
