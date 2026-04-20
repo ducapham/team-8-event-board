@@ -35,8 +35,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const eventController = CreateEventController(eventService, resolvedLogger);
 
   // Feature 12 — Attendee List
-  const rsvpRepository = CreateInMemoryRsvpRepository();
-  const attendeeListService = CreateAttendeeListService(eventRepository, rsvpRepository, authUsers);
+  const attendeeListService = CreateAttendeeListService(eventRepository, authUsers);
   const attendeeListController = CreateAttendeeListController(attendeeListService, resolvedLogger);
 
   // Feature 13 — Event Comments wiring
