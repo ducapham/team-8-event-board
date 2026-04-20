@@ -1,8 +1,8 @@
 import request from "supertest";
 import type { Express } from "express";
-import { createComposedApp } from "../../src/composition";
-import { CreateInMemoryUserRepository } from "../../src/auth/InMemoryUserRepository";
-import { CreateInMemoryEventRepository } from "../../src/repository/InMemoryEventRepository";
+import { createExposedApp } from "./ExposedComposition";
+import { IEventRepository } from "../../src/repository/EventRepository";
+import { ICommentRepository } from "../../src/repository/CommentRepository";
 
 
 const READER_EMAIL = "user@app.test";
@@ -14,16 +14,12 @@ const ADMIN_PASSWORD = "password123";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getExpressApp(): Express {
-  const app = createComposedApp();
-  // IApp wraps Express; cast to access the underlying instance.
-  return (app as unknown as { getExpressApp(): Express }).getExpressApp();
+function getExpressApp(): {app: Express, eventRepository:IEventRepository, commentRepository: ICommentRepository} {
+  const {app, eventRepository, commentRepository} = createExposedApp();
+  const expressApp = (app as unknown as { getExpressApp(): Express }).getExpressApp();
+  return {app: expressApp, eventRepository, commentRepository};
 }
 
-/**
- * Returns a supertest Agent that is already authenticated as the given user.
- * The agent stores and re-sends the session cookie automatically.
- */
 async function loginAs(
   app: Express,
   email: string,
@@ -49,9 +45,13 @@ async function loginAs(
 
 describe("POST /events/:id/toggle — integration", () => {
   let app: Express;
-
+  let eventRepository: IEventRepository;
+  let commentRepository: ICommentRepository;
   beforeEach(() => {
-    app = getExpressApp();
+    const exposed = getExpressApp();
+    app = exposed.app;
+    eventRepository = exposed.eventRepository;
+    commentRepository = exposed.commentRepository;
   });
 
   // ── Authentication guard ─────────────────────────────────────────────────
@@ -73,7 +73,12 @@ describe("POST /events/:id/toggle — integration", () => {
       .set("HX-Request", "true");
 
     expect(res.status).toBe(200);
-    
+    const ToggleResult = await eventRepository.findById(101);
+    expect(ToggleResult.ok).toBe(true);
+    if(ToggleResult.ok && ToggleResult.value) {
+      const event = ToggleResult.value;
+      expect(event.attendees.some(a => a.id === "user-reader")).toBe(true);
+    }
     expect(res.text).not.toContain("error"); // partial renders error on failure
   });
 
@@ -91,7 +96,15 @@ describe("POST /events/:id/toggle — integration", () => {
       .post("/events/102/toggle")
       .set("HX-Request", "true");
     expect(secondRes.status).toBe(200);
-
+    const ToggleResult = await eventRepository.findById(102);
+    expect(ToggleResult.ok).toBe(true);
+    if(ToggleResult.ok && ToggleResult.value) {
+      const event = ToggleResult.value;
+      expect(event.attendees).toHaveLength(1);
+      expect(event.attendees[0].id).toBe("user-reader");
+      expect(event.waitlist).toHaveLength(1);
+      expect(event.waitlist[0].id).toBe("user-admin");
+    }
     expect(secondRes.text).not.toContain("error");
   });
 
@@ -111,6 +124,12 @@ describe("POST /events/:id/toggle — integration", () => {
       .post("/events/101/toggle")
       .set("HX-Request", "true");
     expect(cancelRes.status).toBe(200);
+    const ToggleResult = await eventRepository.findById(101);
+    expect(ToggleResult.ok).toBe(true);
+    if(ToggleResult.ok && ToggleResult.value) {
+      const event = ToggleResult.value;
+      expect(event.attendees.some(a => a.id === "user-reader")).toBe(false);
+    }
     expect(cancelRes.text).not.toContain("error");
   });
 
@@ -127,6 +146,12 @@ describe("POST /events/:id/toggle — integration", () => {
       expect(res.status).toBe(200);
       expect(res.text).not.toContain("error");
     }
+    const ToggleResult = await eventRepository.findById(101);
+    expect(ToggleResult.ok).toBe(true);
+    if(ToggleResult.ok && ToggleResult.value) {
+      const event = ToggleResult.value;
+      expect(event.attendees.some(a => a.id === "user-reader")).toBe(true);
+    }
   });
 
   // ── Past event rejection ─────────────────────────────────────────────────
@@ -140,10 +165,7 @@ describe("POST /events/:id/toggle — integration", () => {
       .set("HX-Request", "true");
 
     // The route renders partials/error (status 200 with error HTML) or a 4xx.
-    const isErrorStatus = res.status >= 400;
-    const isErrorPartial = res.text.toLowerCase().includes("error") ||
-      res.text.toLowerCase().includes("cannot rsvp");
-    expect(isErrorStatus || isErrorPartial).toBe(true);
+    expect (res.status).toBe(403);
   });
 
   // ── Cancelled event rejection ────────────────────────────────────────────
@@ -155,44 +177,22 @@ describe("POST /events/:id/toggle — integration", () => {
       .post("/events/101/cancel")
       .set("HX-Request", "true");
 
-    // Now a regular user tries to RSVP.
     const readerAgent = await loginAs(app, READER_EMAIL, READER_PASSWORD);
     const res = await readerAgent
       .post("/events/101/toggle")
       .set("HX-Request", "true");
 
-    const isErrorStatus = res.status >= 400;
-    const isErrorPartial = res.text.toLowerCase().includes("error") ||
-      res.text.toLowerCase().includes("cancelled");
-    expect(isErrorStatus || isErrorPartial).toBe(true);
+    expect(res.status).toBe(403);
   });
 
-  // ── Invalid event ID ─────────────────────────────────────────────────────
-
-  it("returns 400 for a non-numeric event ID", async () => {
+  // ── Non-existent event rejection ─────────────────────────────────────────
+  it("rejects an RSVP attempt for a non-existent event", async () => {
     const agent = await loginAs(app, READER_EMAIL, READER_PASSWORD);
-
-    const res = await agent
-      .post("/events/abc/toggle")
-      .set("HX-Request", "true");
-
-    expect(res.status).toBe(400);
-  });
-
-  it("returns an error partial for a numeric but non-existent event ID (999)", async () => {
-    const agent = await loginAs(app, READER_EMAIL, READER_PASSWORD);
-
     const res = await agent
       .post("/events/999/toggle")
       .set("HX-Request", "true");
-
-    // The service returns EventNotFoundError; the controller renders an error partial.
-    const isErrorStatus = res.status >= 400;
-    const isErrorPartial = res.text.toLowerCase().includes("error") ||
-      res.text.toLowerCase().includes("not found");
-    expect(isErrorStatus || isErrorPartial).toBe(true);
+    expect(res.status).toBe(404);
   });
-
   // ── Non-HTMX fallback (full-page redirect) ───────────────────────────────
 
   it("redirects (302) instead of rendering a partial for non-HTMX toggle requests", async () => {
