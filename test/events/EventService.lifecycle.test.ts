@@ -1,13 +1,15 @@
 import { CreateEventService, type EventActor } from "../../src/service/EventService";
 import { CreateInMemoryEventRepository } from "../../src/repository/InMemoryEventRepository";
+import { CreateInMemoryUserRepository } from "../../src/auth/InMemoryUserRepository";
 
 describe("EventService lifecycle transitions", () => {
   const staffActor: EventActor = { userId: "user-staff", role: "staff" };
   const adminActor: EventActor = { userId: "user-admin", role: "admin" };
   const userActor: EventActor = { userId: "user-reader", role: "user" };
+  const authUsers = CreateInMemoryUserRepository();
 
   it("allows the organizer to publish a draft event", async () => {
-    const service = CreateEventService(CreateInMemoryEventRepository());
+    const service = CreateEventService(CreateInMemoryEventRepository(authUsers));
 
     const result = await service.publishEvent("103", staffActor);
 
@@ -20,7 +22,7 @@ describe("EventService lifecycle transitions", () => {
   });
 
   it("allows an admin to publish a draft event", async () => {
-    const service = CreateEventService(CreateInMemoryEventRepository());
+    const service = CreateEventService(CreateInMemoryEventRepository(authUsers));
 
     const result = await service.publishEvent("103", adminActor);
 
@@ -32,7 +34,7 @@ describe("EventService lifecycle transitions", () => {
   });
 
   it("rejects publishing a draft event by a non-owner", async () => {
-    const service = CreateEventService(CreateInMemoryEventRepository());
+    const service = CreateEventService(CreateInMemoryEventRepository(authUsers));
 
     const result = await service.publishEvent("103", userActor);
 
@@ -44,7 +46,7 @@ describe("EventService lifecycle transitions", () => {
   });
 
   it("rejects publishing an already published event", async () => {
-    const service = CreateEventService(CreateInMemoryEventRepository());
+    const service = CreateEventService(CreateInMemoryEventRepository(authUsers));
 
     const result = await service.publishEvent("101", staffActor);
 
@@ -56,7 +58,7 @@ describe("EventService lifecycle transitions", () => {
   });
 
   it("allows the organizer to cancel a published event", async () => {
-    const service = CreateEventService(CreateInMemoryEventRepository());
+    const service = CreateEventService(CreateInMemoryEventRepository(authUsers));
 
     const result = await service.cancelEvent("101", staffActor);
 
@@ -69,7 +71,7 @@ describe("EventService lifecycle transitions", () => {
   });
 
   it("allows an admin to cancel a published event", async () => {
-    const service = CreateEventService(CreateInMemoryEventRepository());
+    const service = CreateEventService(CreateInMemoryEventRepository(authUsers));
 
     const result = await service.cancelEvent("104", adminActor);
 
@@ -81,7 +83,7 @@ describe("EventService lifecycle transitions", () => {
   });
 
   it("rejects cancelling a published event by a non-owner", async () => {
-    const service = CreateEventService(CreateInMemoryEventRepository());
+    const service = CreateEventService(CreateInMemoryEventRepository(authUsers));
 
     const result = await service.cancelEvent("101", userActor);
 
@@ -93,7 +95,7 @@ describe("EventService lifecycle transitions", () => {
   });
 
   it("rejects cancelling a draft event", async () => {
-    const service = CreateEventService(CreateInMemoryEventRepository());
+    const service = CreateEventService(CreateInMemoryEventRepository(authUsers));
 
     const result = await service.cancelEvent("103", staffActor);
 
@@ -105,7 +107,7 @@ describe("EventService lifecycle transitions", () => {
   });
 
   it("rejects cancelling an already cancelled event", async () => {
-    const service = CreateEventService(CreateInMemoryEventRepository());
+    const service = CreateEventService(CreateInMemoryEventRepository(authUsers));
 
     const firstResult = await service.cancelEvent("104", adminActor);
     expect(firstResult.ok).toBe(true);
