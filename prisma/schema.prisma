@@ -40,11 +40,11 @@ model EventAttendee {
   status    EventAttendanceStatus  @default(REGISTERED)
   createdAt DateTime               @default(now())
   updatedAt DateTime               @updatedAt
-
   @@unique([userId, eventId])
 }
 
 enum EventAttendanceStatus {
   REGISTERED
   WAITLISTED
+  CANCELLED
 }
