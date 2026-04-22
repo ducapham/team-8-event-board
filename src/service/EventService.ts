@@ -5,13 +5,14 @@ import type {
   EventError,
   CreateEventError,
   GetEventError,
-  InvalidInputError as InvalidFilterError,
 } from "../lib/errors.js";
 import {
   EventNotFoundError,
   ForbiddenError,
+  InvalidCategoryFilterError,
   InvalidInputError,
   InvalidEventTransitionError,
+  InvalidTimeframeFilterError,
   UnauthorizedEventActionError,
   UnexpectedDependencyError,
   UnknownError,
@@ -114,11 +115,11 @@ function normalizeFilters(input: EventListInput): Result<ResolvedEventFilters, E
   const query = input.query?.trim() ?? "";
 
   if (categoryValue && !isEventCategory(categoryValue)) {
-    return Err(new InvalidInputError("Category filter is invalid."));
+    return Err(new InvalidCategoryFilterError("Category filter is invalid."));
   }
 
   if (timeframeValue && !isEventTimeframe(timeframeValue)) {
-    return Err(new InvalidInputError("Timeframe filter is invalid."));
+    return Err(new InvalidTimeframeFilterError("Timeframe filter is invalid."));
   }
 
   const timeframe: EventTimeframe = timeframeValue

@@ -4,6 +4,8 @@ export type EventError =
   | UnknownError
   | UnexpectedDependencyError
   | InvalidInputError
+  | InvalidCategoryFilterError
+  | InvalidTimeframeFilterError
   | ForbiddenError
   | UnauthorizedEventActionError
   | RSVPNotAllowedError
@@ -41,6 +43,20 @@ export class InvalidInputError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "InvalidInputError";
+  }
+}
+
+export class InvalidCategoryFilterError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidCategoryFilterError";
+  }
+}
+
+export class InvalidTimeframeFilterError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidTimeframeFilterError";
   }
 }
 

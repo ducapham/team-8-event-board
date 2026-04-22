@@ -69,6 +69,8 @@ class EventController implements IEventController {
     if (error.name === "ForbiddenError") return 403;
     if (error.name === "UnauthorizedEventActionError") return 403;
     if (error.name === "RSVPNotAllowedError") return 403;
+    if (error.name === "InvalidCategoryFilterError") return 400;
+    if (error.name === "InvalidTimeframeFilterError") return 400;
     if (error.name === "InvalidEventTransitionError") return 409;
     if (error.name === "InvalidInputError") return 400;
     return 500;
