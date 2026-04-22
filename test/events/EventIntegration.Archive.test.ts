@@ -6,6 +6,16 @@ function getExpressApp() {
   const { app } = createExposedApp();
   return (app as any).getExpressApp();
 }
+async function loginAs(app: Express, email: string, password: string) {
+  const agent = request.agent(app);
+
+  await agent.post("/login").type("form").send({
+    email,
+    password,
+  });
+
+  return agent;
+}
 
 describe("GET /events/archive", () => {
   let app: Express;
@@ -14,20 +24,15 @@ describe("GET /events/archive", () => {
     app = getExpressApp();
   });
 
-  it("returns 401 when not authenticated", async () => {
+  it("blocks unauthenticated users", async () => {
     await request(app)
       .get("/events/archive")
       .set("HX-Request", "true")
       .expect(401);
   });
 
-  it("returns past events", async () => {
-    const agent = request.agent(app);
-
-    await agent.post("/login").type("form").send({
-      email: "user@app.test",
-      password: "password123",
-    });
+  it("returns only past events", async () => {
+    const agent = await loginAs(app, "user@app.test", "password123");
 
     const res = await agent
       .get("/events/archive")
@@ -35,15 +40,11 @@ describe("GET /events/archive", () => {
 
     expect(res.status).toBe(200);
     expect(res.text).toContain("Spring Music Festival");
+    expect(res.text).not.toContain("Community Picnic");
   });
 
   it("filters by category", async () => {
-    const agent = request.agent(app);
-
-    await agent.post("/login").type("form").send({
-      email: "user@app.test",
-      password: "password123",
-    });
+    const agent = await loginAs(app, "user@app.test", "password123");
 
     const res = await agent
       .get("/events/archive")
@@ -51,5 +52,17 @@ describe("GET /events/archive", () => {
       .set("HX-Request", "true");
 
     expect(res.status).toBe(200);
+  });
+
+  it("returns empty when no matches", async () => {
+    const agent = await loginAs(app, "user@app.test", "password123");
+
+    const res = await agent
+      .get("/events/archive")
+      .query({ category: "xyz" })
+      .set("HX-Request", "true");
+
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain("Spring Music Festival");
   });
 });
