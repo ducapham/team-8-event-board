@@ -483,7 +483,6 @@ class EventController implements IEventController {
   }
 
   // Feature 11 — Past Event Archiving (Giorgi)
-  
   async showArchive(
     res: Response,
     session: IAppBrowserSession,
@@ -496,6 +495,16 @@ class EventController implements IEventController {
         pageError: result.value.message,
         session,
         events: [],
+      });
+    }
+
+    const req = res.req;
+
+    if (req.get("HX-Request") === "true") {
+      return res.render("partials/archive-list", {
+        events: result.value,
+        session,
+        layout: false,
       });
     }
 
