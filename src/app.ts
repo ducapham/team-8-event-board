@@ -261,7 +261,7 @@ class ExpressApp implements IApp {
           category: typeof req.query.category === "string" ? req.query.category : undefined,
           timeframe: typeof req.query.timeframe === "string" ? req.query.timeframe : undefined,
           query: typeof req.query.query === "string" ? req.query.query : undefined,
-        });
+        }, this.isHtmxRequest(req));
       }),
     );
 

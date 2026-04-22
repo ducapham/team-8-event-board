@@ -18,6 +18,7 @@ export interface IEventController {
     res: Response,
     session: IAppBrowserSession,
     query: { category?: string; timeframe?: string; query?: string },
+    isHtmxRequest?: boolean,
   ): Promise<void>;
   showEventDetail(
     res: Response,
@@ -162,6 +163,7 @@ class EventController implements IEventController {
     res: Response,
     session: IAppBrowserSession,
     query: { category?: string; timeframe?: string; query?: string },
+    isHtmxRequest = false,
   ): Promise<void> {
     const result = await this.service.listPublishedEvents(
       query,
@@ -172,7 +174,17 @@ class EventController implements IEventController {
       const status = this.mapErrorStatus(result.value);
       const log = status >= 500 ? this.logger.error : this.logger.warn;
       log.call(this.logger, `List events failed: ${result.value.message}`);
+      if (isHtmxRequest) {
+        await this.renderEventListPartial(res, session, query, result.value.message, status);
+        return;
+      }
+
       await this.renderEventsPage(res, session, null, result.value.message, status);
+      return;
+    }
+
+    if (isHtmxRequest) {
+      await this.renderEventListPartial(res, session, query, null, 200);
       return;
     }
 
