@@ -374,6 +374,19 @@ class EventController implements IEventController {
       return;
     }
 
+    if (res.req.get("HX-Request") === "true" && res.req.query.from === "my-rsvps") {
+      const result = await this.service.getMyRSVPs(
+        session.authenticatedUser?.userId ?? ""
+      );
+
+      return res.render("partials/my-rsvps-columns", {
+        going: result.value.going,
+        waitlisted: result.value.waitlisted,
+        cancelled: result.value.cancelled,
+        layout: false,
+      });
+    }
+
     if (redirectOnSuccess) {
       res.redirect("/events");
       return;
