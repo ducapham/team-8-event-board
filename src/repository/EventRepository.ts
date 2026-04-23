@@ -15,6 +15,7 @@ export interface IEventRepository {
 
   // Feature 1 — Event Creation (Haruki)
   create(event: IEvent): Promise<IEvent>;
+  findOrganizerNameById(userId: string): Promise<Result<string, EventError>>;
   
   // Feature 7 — My RSVPs Dashboard (Giorgi)
   getRSVPsByUser(userId: string): Promise<any>;

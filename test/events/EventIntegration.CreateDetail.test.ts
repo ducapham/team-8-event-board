@@ -115,8 +115,6 @@ describe("Event Creation + Detail integration", () => {
         endDatetime: "2026-04-20T12:00",
       });
 
-    // Your app currently uses requireAuthenticated for POST routes,
-    // so this should be 401 with an error partial.
     expect(res.status).toBe(401);
     expect(res.text).toContain("Please log in to continue.");
   });

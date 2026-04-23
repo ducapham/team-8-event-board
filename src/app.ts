@@ -419,7 +419,7 @@ class ExpressApp implements IApp {
         }
 
         const isHtmx = this.isHtmxRequest(req);
-        await this.eventController.toggleFromForm(res, id, browserSession, !isHtmx);
+        await this.eventController.toggleFromForm(res, id, browserSession, !isHtmx)
       }),
     );
 

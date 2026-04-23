@@ -114,6 +114,7 @@ class EventController implements IEventController {
       session,
       event: detailResult?.event ?? null,
       permissions: detailResult?.permissions ?? { canPublish: false, canCancel: false },
+      organizerName: detailResult?.organizerName,
       ...(options?.layout === false ? { layout: false } : {}),
     });
   }
@@ -490,6 +491,7 @@ class EventController implements IEventController {
     res.render("events/detail", {
       event: result.value.event,
       permissions: result.value.permissions,
+      organizerName: result.value.organizerName,
       session: browserSession,
       pageError: null,
     });
