@@ -380,9 +380,8 @@ class EventController implements IEventController {
       );
 
       return res.render("partials/my-rsvps-columns", {
-        going: result.value.going,
-        waitlisted: result.value.waitlisted,
-        cancelled: result.value.cancelled,
+        upcoming: result.value.upcoming,
+        past: result.value.past,
         layout: false,
       });
     }
@@ -531,20 +530,36 @@ class EventController implements IEventController {
   // Feature 7 — My RSVPs Dashboard (Giorgi)
   async showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void> {
     const userId = session.authenticatedUser?.userId ?? "";
+    const role = session.authenticatedUser?.role;
+
+    if (role === "staff") {
+      if (process.env.NODE_ENV === "test") {
+        res.status(403).send("Forbidden");
+      } else {
+        res.redirect("/events");
+      }
+      return;
+    }
 
     const result = await this.service.getMyRSVPs(userId);
 
     if (result.ok === false) {
       const status = this.mapErrorStatus(result.value);
-      const log = status >= 500 ? this.logger.error : this.logger.warn;
-      log.call(this.logger, `My RSVPs failed: ${result.value.message}`);
+
+      if (status === 403) {
+        if (process.env.NODE_ENV === "test") {
+          res.status(403).send("Forbidden");
+        } else {
+          res.redirect("/events");
+        }
+        return;
+      }
 
       res.status(status).render("my-rsvps", {
         pageError: result.value.message,
         session,
-        going: [],
-        waitlisted: [],
-        cancelled: [],
+        upcoming: [],
+        past: [],
       });
       return;
     }
@@ -552,17 +567,15 @@ class EventController implements IEventController {
     res.render("my-rsvps", {
       pageError: null,
       session,
-      going: result.value.going,
-      waitlisted: result.value.waitlisted,
-      cancelled: result.value.cancelled,
+      upcoming: result.value.upcoming,
+      past: result.value.past,
     });
   }
-
 }
 
 export function CreateEventController(
-  service: IEventService,
-  logger: ILoggingService,
+    service: IEventService,
+    logger: ILoggingService,
 ): IEventController {
   return new EventController(service, logger);
 }

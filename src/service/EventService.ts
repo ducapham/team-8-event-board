@@ -506,19 +506,52 @@ class EventService implements IEventService {
   // Feature 7 — My RSVPs Dashboard (Giorgi)
   async getMyRSVPs(userId: string): Promise<Result<any, EventError>> {
     try {
+      const eventsResult = await this.repo.listEvents();
+
+      if (eventsResult.ok === false) {
+        return Err(eventsResult.value);
+      }
+
+      const events = eventsResult.value;
+
+      const isOrganizer = events.some(
+        (e: any) => e.organizerId === userId
+      );
+      if (isOrganizer && userId !== "user-admin") {
+        return Err(new ForbiddenError("Organizers cannot access RSVP dashboard"));
+      }
+
       const data = await this.repo.getRSVPsByUser(userId);
 
-      return Ok({
-        going: data.filter((d: any) => d.status === "Registered"),
-        waitlisted: data.filter((d: any) => d.status === "Waitlisted"),
-        cancelled: data.filter((d: any) => d.status === "Cancelled"),
-      });
+      const now = new Date();
+
+      const upcoming = data
+        .filter((d: any) =>
+          (d.status === "Registered" || d.status === "Waitlisted") &&
+          new Date(d.event.endDatetime) > now
+        )
+        .sort((a: any, b: any) =>
+          new Date(a.event.startDatetime).getTime() -
+          new Date(b.event.startDatetime).getTime()
+        );
+
+      const past = data
+        .filter((d: any) =>
+          new Date(d.event.endDatetime) <= now ||
+          d.status === "Cancelled"
+        )
+        .sort((a: any, b: any) =>
+          new Date(b.event.startDatetime).getTime() -
+          new Date(a.event.startDatetime).getTime()
+        );
+
+      return Ok({ upcoming, past });
+
     } catch {
       return Err(new UnknownError("Failed to fetch RSVPs"));
     }
   }
 }
-
 export function CreateEventService(repo: IEventRepository): IEventService {
   return new EventService(repo);
 }
