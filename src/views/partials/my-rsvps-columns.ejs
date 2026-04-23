@@ -1,14 +1,14 @@
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
   <div class="bg-white rounded-xl shadow p-4">
-    <h2 class="text-lg font-semibold mb-3">Going</h2>
+    <h2 class="text-lg font-semibold mb-3">Upcoming</h2>
 
-    <% if (going.length === 0) { %>
+    <% if (upcoming.length === 0) { %>
       <p class="text-gray-500">No events</p>
     <% } %>
 
     <div class="space-y-3">
-      <% going.forEach(e => { %>
+      <% upcoming.forEach(e => { %>
         <div class="flex justify-between items-center border rounded-lg p-3">
           
           <span class="font-medium"><%= e.event.title %></span>
@@ -29,42 +29,14 @@
   </div>
 
   <div class="bg-white rounded-xl shadow p-4">
-    <h2 class="text-lg font-semibold mb-3">Waitlisted</h2>
+    <h2 class="text-lg font-semibold mb-3">Past</h2>
 
-    <% if (waitlisted.length === 0) { %>
+    <% if (past.length === 0) { %>
       <p class="text-gray-500">No events</p>
     <% } %>
 
     <div class="space-y-3">
-      <% waitlisted.forEach(e => { %>
-        <div class="flex justify-between items-center border rounded-lg p-3">
-          
-          <span class="font-medium"><%= e.event.title %></span>
-
-          <button
-            type="button"
-            hx-post="/events/<%= e.event.id %>/toggle?from=my-rsvps&redirectOnSuccess=false"
-            hx-target="#rsvp-columns"
-            hx-swap="innerHTML"
-            class="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Cancel
-          </button>
-
-        </div>
-      <% }) %>
-    </div>
-  </div>
-
-  <div class="bg-white rounded-xl shadow p-4">
-    <h2 class="text-lg font-semibold mb-3">Cancelled</h2>
-
-    <% if (cancelled.length === 0) { %>
-      <p class="text-gray-500">No events</p>
-    <% } %>
-
-    <div class="space-y-3">
-      <% cancelled.forEach(e => { %>
+      <% past.forEach(e => { %>
         <div class="border rounded-lg p-3">
           <span class="font-medium text-gray-500"><%= e.event.title %></span>
         </div>
