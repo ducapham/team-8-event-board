@@ -2,7 +2,14 @@ export type EventError =
   | EventNotFoundError
   | UserNotFoundError
   | UnknownError
-  | UnexpectedDependencyError;
+  | UnexpectedDependencyError
+  | InvalidInputError
+  | InvalidCategoryFilterError
+  | InvalidTimeframeFilterError
+  | ForbiddenError
+  | UnauthorizedEventActionError
+  | RSVPNotAllowedError
+  | InvalidEventTransitionError;
 
 export class EventNotFoundError extends Error {
   constructor(message: string) {
@@ -39,10 +46,45 @@ export class InvalidInputError extends Error {
   }
 }
 
+export class InvalidCategoryFilterError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidCategoryFilterError";
+  }
+}
+
+export class InvalidTimeframeFilterError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidTimeframeFilterError";
+  }
+}
+
 export class ForbiddenError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ForbiddenError";
+  }
+}
+
+export class UnauthorizedEventActionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnauthorizedEventActionError";
+  }
+}
+
+export class RSVPNotAllowedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RSVPNotAllowedError";
+  }
+}
+
+export class InvalidEventTransitionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidEventTransitionError";
   }
 }
 

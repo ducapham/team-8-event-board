@@ -19,7 +19,7 @@ import {
 } from "./session/AppSession";
 import { ILoggingService } from "./service/LoggingService";
 // Feature 12 — Attendee List
-import type { IAttendeeListController } from "./rsvp/AttendeeListController";
+import type { IAttendeeListController } from "./controller/AttendeeListController";
 import type { IEventRepository } from "./repository/EventRepository";
 // Feature 13 — Event Comments
 import type { ICommentController } from "./controller/CommentController";
@@ -261,7 +261,7 @@ class ExpressApp implements IApp {
           category: typeof req.query.category === "string" ? req.query.category : undefined,
           timeframe: typeof req.query.timeframe === "string" ? req.query.timeframe : undefined,
           query: typeof req.query.query === "string" ? req.query.query : undefined,
-        });
+        }, this.isHtmxRequest(req));
       }),
     );
 
@@ -286,6 +286,22 @@ class ExpressApp implements IApp {
       asyncHandler(async (req, res) => {
         if (!this.requireAuthenticated(req, res)) return;
         this.eventController.renderCreateForm(req, res);
+      }),
+    );
+
+    // Feature 11 — Past Event Archiving (Giorgi)
+    this.app.get(
+      "/events/archive",
+      asyncHandler(async (req, res) => {
+        if (!this.requireAuthenticated(req, res)) return;
+
+        const browserSession = recordPageView(sessionStore(req));
+
+        await this.eventController.showArchive(
+          res,
+          browserSession,
+          typeof req.query.category === "string" ? req.query.category : undefined
+        );
       }),
     );
 
@@ -338,21 +354,7 @@ class ExpressApp implements IApp {
           touchAppSession(sessionStore(req)),
           typeof req.params.id === "string" ? req.params.id : "",
           currentUser,
-        );
-      }),
-    );
-
-    // Feature 11 — Attendee List (Giorgi)
-    this.app.get(
-      "/events/:id/attendees",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return;
-
-        const browserSession = recordPageView(sessionStore(req));
-        await this.eventController.showAttendees(
-          res,
-          browserSession,
-          typeof req.params.id === "string" ? req.params.id : ""
+          this.isHtmxRequest(req),
         );
       }),
     );
@@ -393,6 +395,7 @@ class ExpressApp implements IApp {
           touchAppSession(sessionStore(req)),
           typeof req.params.id === "string" ? req.params.id : "",
           currentUser,
+          this.isHtmxRequest(req),
         );
       }),
     );
@@ -415,7 +418,8 @@ class ExpressApp implements IApp {
           return;
         }
 
-        await this.eventController.toggleFromForm(res, id, browserSession);
+        const isHtmx = this.isHtmxRequest(req);
+        await this.eventController.toggleFromForm(res, id, browserSession, !isHtmx);
       }),
     );
 
@@ -434,27 +438,6 @@ class ExpressApp implements IApp {
         res.render("home", { session: browserSession, pageError: null });
       }),
     );
-    this.app.post(
-      "/events/:id/toggle",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) {
-          return;
-        }
-
-        const browserSession = touchAppSession(sessionStore(req));
-        const id = Number(req.params.id);
-        if (Number.isNaN(id)) {
-          res.status(400).render("partials/error", {
-            message: "Invalid event id.",
-            layout: false,
-          });
-          return;
-        }
-
-        await this.eventController.toggleFromForm(res, id, browserSession);
-      }),
-    );
-
     // ── Feature 12: Attendee List ─────────────────────────────────────
     if (this.attendeeListController && this.eventRepo) {
       this.app.get(

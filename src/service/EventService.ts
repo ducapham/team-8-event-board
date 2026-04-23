@@ -5,12 +5,15 @@ import type {
   EventError,
   CreateEventError,
   GetEventError,
-  InvalidInputError as InvalidFilterError,
 } from "../lib/errors.js";
 import {
   EventNotFoundError,
   ForbiddenError,
+  InvalidCategoryFilterError,
   InvalidInputError,
+  InvalidEventTransitionError,
+  InvalidTimeframeFilterError,
+  UnauthorizedEventActionError,
   UnexpectedDependencyError,
   UnknownError,
 } from "../lib/errors.js";
@@ -74,11 +77,8 @@ export interface IEventService {
   getEventDetail(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
   publishEvent(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
   cancelEvent(eventId: string, actor: EventActor, now?: Date): Promise<Result<EventDetailResult, EventError>>;
-  getGroupedAttendees(
-    eventId: number,
-    userId: string,
-    role: string
-  ): Promise<Result<any, EventError>>;
+  getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>>;
+
 }
 
 
@@ -115,11 +115,11 @@ function normalizeFilters(input: EventListInput): Result<ResolvedEventFilters, E
   const query = input.query?.trim() ?? "";
 
   if (categoryValue && !isEventCategory(categoryValue)) {
-    return Err(new InvalidInputError("Category filter is invalid."));
+    return Err(new InvalidCategoryFilterError("Category filter is invalid."));
   }
 
   if (timeframeValue && !isEventTimeframe(timeframeValue)) {
-    return Err(new InvalidInputError("Timeframe filter is invalid."));
+    return Err(new InvalidTimeframeFilterError("Timeframe filter is invalid."));
   }
 
   const timeframe: EventTimeframe = timeframeValue
@@ -335,7 +335,11 @@ class EventService implements IEventService {
 
     const filteredEvents = eventsResult.value
       .map((event) => resolveEventStatus(event, now))
-      .filter((event) => event.status === "published" && event.startDatetime.getTime() >= now.getTime())
+      .filter((event) => {
+        const eventIsOwnedDraft = event.status === "draft" && viewerId !== undefined && event.organizerId === viewerId;
+        const eventIsPublishedUpcoming = event.status === "published" && event.startDatetime.getTime() >= now.getTime();
+        return eventIsPublishedUpcoming || eventIsOwnedDraft;
+      })
       .filter((event) => (filters.category ? event.category.toLowerCase() === filters.category : true))
       .filter((event) => {
         if (filters.timeframe === "this-week") {
@@ -414,11 +418,11 @@ class EventService implements IEventService {
     }
 
     if (!isAdmin(actor) && !isOwner(eventLookup.value, actor)) {
-      return Err(new ForbiddenError("Only the organizer or an admin can publish this event."));
+      return Err(new UnauthorizedEventActionError("Only the organizer or an admin can publish this event."));
     }
 
     if (eventLookup.value.status !== "draft") {
-      return Err(new InvalidInputError("Only draft events can be published."));
+      return Err(new InvalidEventTransitionError("Only draft events can be published."));
     }
 
     const updatedEvent: IEvent = {
@@ -454,11 +458,11 @@ class EventService implements IEventService {
     }
 
     if (!isAdmin(actor) && !isOwner(eventLookup.value, actor)) {
-      return Err(new ForbiddenError("Only the organizer or an admin can cancel this event."));
+      return Err(new UnauthorizedEventActionError("Only the organizer or an admin can cancel this event."));
     }
 
     if (eventLookup.value.status !== "published") {
-      return Err(new InvalidInputError("Only published events can be cancelled."));
+      return Err(new InvalidEventTransitionError("Only published events can be cancelled."));
     }
 
     const updatedEvent: IEvent = {
@@ -478,28 +482,25 @@ class EventService implements IEventService {
     });
   }
 
-  // Feature 11 — Attendee List (Giorgi)
-  async getGroupedAttendees(
-    eventId: number,
-    userId: string,
-    role: string
-  ): Promise<Result<any, EventError>> {
+  // Feature 11 — Past Event Archiving (Giorgi)
+  async getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>> {
+    const result = await this.repo.listEvents();
 
-    const eventResult = await this.repo.findById(eventId);
-
-    if (!eventResult.ok || !eventResult.value) {
-      return Err(new EventNotFoundError("Event not found"));
+    if (result.ok === false) {
+      return result;
     }
 
-    const event = eventResult.value;
+    const now = new Date();
 
-    if (!(role === "admin" || event.organizerId === userId)) {
-      return Err(new ForbiddenError("Not allowed to view attendees"));
-    }
+    const pastEvents = result.value
+      .map(e => resolveEventStatus(e, now))
+      .filter(e =>
+        e.status === "past" &&
+        (!category || e.category.toLowerCase() === category.toLowerCase())
+      )
+      .sort((a, b) => b.startDatetime.getTime() - a.startDatetime.getTime());
 
-    const grouped = await this.repo.getGroupedAttendees(eventId);
-
-    return Ok(grouped);
+    return Ok(pastEvents);
   }
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
@@ -510,7 +511,7 @@ class EventService implements IEventService {
       return Ok({
         going: data.filter((d: any) => d.status === "Registered"),
         waitlisted: data.filter((d: any) => d.status === "Waitlisted"),
-        cancelled: data.filter((d: any) => d.status === "Not Registered"),
+        cancelled: data.filter((d: any) => d.status === "Cancelled"),
       });
     } catch {
       return Err(new UnknownError("Failed to fetch RSVPs"));

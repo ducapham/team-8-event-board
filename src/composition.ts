@@ -11,9 +11,8 @@ import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
 // Feature 12 — Attendee List
-import { CreateInMemoryRsvpRepository } from "./rsvp/InMemoryRsvpRepository";
-import { CreateAttendeeListService } from "./rsvp/AttendeeListService";
-import { CreateAttendeeListController } from "./rsvp/AttendeeListController";
+import { CreateAttendeeListService } from "./service/AttendeeListService";
+import { CreateAttendeeListController } from "./controller/AttendeeListController";
 // Feature 13 — Event Comments
 import { CreateInMemoryCommentRepository } from "./repository/InMemoryCommentRepository";
 import { CreateCommentService } from "./service/CommentService";
@@ -30,13 +29,12 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
   // Event management wiring
-  const eventRepository = CreateInMemoryEventRepository();
+  const eventRepository = CreateInMemoryEventRepository(authUsers);
   const eventService = CreateEventService(eventRepository);
   const eventController = CreateEventController(eventService, resolvedLogger);
 
   // Feature 12 — Attendee List
-  const rsvpRepository = CreateInMemoryRsvpRepository();
-  const attendeeListService = CreateAttendeeListService(eventRepository, rsvpRepository, authUsers);
+  const attendeeListService = CreateAttendeeListService(eventRepository);
   const attendeeListController = CreateAttendeeListController(attendeeListService, resolvedLogger);
 
   // Feature 13 — Event Comments wiring

@@ -1,0 +1,33 @@
+<div class="event-list">
+  <% if (events.length === 0) { %>
+    <p class="empty">No past events.</p>
+  <% } else { %>
+    <% events.forEach(event => { %>
+      <div class="event-card">
+        
+        <div class="event-header">
+          <h2><%= event.title %></h2>
+          <span class="badge">Past</span>
+        </div>
+
+        <div class="event-details">
+          <p><strong>Location:</strong> <%= event.location %></p>
+          <p><strong>Category:</strong> <%= event.category %></p>
+        </div>
+
+        <div class="event-time">
+          <p>
+            <%= event.startDatetime.toLocaleString() %> 
+            → 
+            <%= event.endDatetime.toLocaleString() %>
+          </p>
+        </div>
+
+        <div class="event-actions">
+          <a href="/events/<%= event.id %>" class="btn">View Details</a>
+        </div>
+
+      </div>
+    <% }) %>
+  <% } %>
+</div>

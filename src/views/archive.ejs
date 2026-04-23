@@ -1,0 +1,28 @@
+<div class="container">
+  <h1>Past Events</h1>
+
+  <form hx-get="/events/archive" hx-target=".event-list" hx-swap="innerHTML" hx-indicator="#loading"
+    style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
+    <input type="text" name="category" placeholder="Filter by category"
+      style="padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc;" />
+
+  <button
+    type="submit"
+    class="mt-1 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-medium cursor-pointer hover:bg-blue-700"
+  >
+    Filter
+  </button>
+  </form>
+
+  <div id="loading" style="display:none; margin-bottom: 1rem;">
+    Loading...
+  </div>
+
+  <% if (pageError) { %>
+    <div class="error-box">
+      <p><%= pageError %></p>
+    </div>
+  <% } %>
+
+  <%- include("partials/archive-list", { events }) %>
+</div>

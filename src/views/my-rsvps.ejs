@@ -1,41 +1,9 @@
-<h1>My RSVPs</h1>
+<div class="space-y-6">
 
-<div style="display: flex; gap: 40px; margin-top: 20px;">
+  <h1 class="text-2xl font-semibold">My RSVPs</h1>
 
-  <div>
-    <h2>Going</h2>
-    <ul>
-      <% if (going.length === 0) { %>
-        <li>No events</li>
-      <% } %>
-      <% going.forEach(e => { %>
-        <li><strong><%= e.event.title %></strong></li>
-      <% }) %>
-    </ul>
-  </div>
-
-  <div>
-    <h2>Waitlisted</h2>
-    <ul>
-      <% if (waitlisted.length === 0) { %>
-        <li>No events</li>
-      <% } %>
-      <% waitlisted.forEach(e => { %>
-        <li><strong><%= e.event.title %></strong></li>
-      <% }) %>
-    </ul>
-  </div>
-
-  <div>
-    <h2>Cancelled</h2>
-    <ul>
-      <% if (cancelled.length === 0) { %>
-        <li>No events</li>
-      <% } %>
-      <% cancelled.forEach(e => { %>
-        <li><strong><%= e.event.title %></strong></li>
-      <% }) %>
-    </ul>
+  <div id="rsvp-columns">
+    <%- include("partials/my-rsvps-columns", { going, waitlisted, cancelled }) %>
   </div>
 
 </div>
