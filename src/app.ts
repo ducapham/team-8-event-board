@@ -453,8 +453,9 @@ class ExpressApp implements IApp {
           }
           const eventResult = await this.eventRepo!.findById(eventId);
           const eventTitle = eventResult.ok && eventResult.value ? eventResult.value.title : "Event";
+          const isHtmx = this.isHtmxRequest(req);
           await this.attendeeListController!.showAttendees(
-            res, eventId, currentUser.userId, currentUser.role, eventTitle, recordPageView(sessionStore(req)),
+            res, eventId, currentUser.userId, currentUser.role, eventTitle, recordPageView(sessionStore(req)), isHtmx,
           );
         }),
       );

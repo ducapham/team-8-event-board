@@ -126,14 +126,20 @@
           </div>
         <% } %>
       </div>
-      <%# Feature 12 — Link to attendee list (organizer/admin only) %>
+      <%# Feature 12 — Attendee list loads inline via HTMX (organizer/admin only) %>
       <% if (session?.authenticatedUser && (session.authenticatedUser.role === 'admin' || session.authenticatedUser.userId === event.organizerId)) { %>
         <div class="mt-6">
-          <a href="/events/<%= event.id %>/attendees"
-             class="inline-block rounded-xl bg-slate-700 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+          <button
+            type="button"
+            class="inline-block rounded-xl bg-slate-700 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            hx-get="/events/<%= event.id %>/attendees"
+            hx-target="#attendee-list-slot"
+            hx-swap="innerHTML"
+          >
             View Attendee List
-          </a>
+          </button>
         </div>
+        <div id="attendee-list-slot" class="mt-6"></div>
       <% } %>
     <% } %>
   </div>

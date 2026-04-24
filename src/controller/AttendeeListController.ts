@@ -16,6 +16,7 @@ export interface IAttendeeListController {
     requestingUserRole: string,
     eventTitle: string,
     browserSession: IAppBrowserSession,
+    isHtmx?: boolean,
   ): Promise<void>;
 }
 
@@ -32,6 +33,7 @@ class AttendeeListController implements IAttendeeListController {
     requestingUserRole: string,
     eventTitle: string,
     browserSession: IAppBrowserSession,
+    isHtmx: boolean = false,
   ): Promise<void> {
     this.logger.info(`GET /events/${eventId}/attendees by user ${requestingUserId}`);
 
@@ -44,12 +46,19 @@ class AttendeeListController implements IAttendeeListController {
       return;
     }
 
-    res.render("rsvp/attendees", {
+    // HTMX requests get the bare partial so it can be swapped inline; direct
+    // browser navigation to /events/:id/attendees still renders with the
+    // full layout so the page stands on its own.
+    const renderOptions: Record<string, unknown> = {
       eventId,
       eventTitle,
       grouped: result.value,
       session: browserSession,
-    });
+    };
+    if (isHtmx) {
+      renderOptions.layout = false;
+    }
+    res.render("rsvp/attendees", renderOptions);
   }
 }
 
