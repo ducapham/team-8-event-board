@@ -65,6 +65,7 @@ export interface EventPermissions {
 export interface EventDetailResult {
   event: IEvent;
   permissions: EventPermissions;
+  organizerName: string;
 }
 
 export interface IEventService {
@@ -382,23 +383,37 @@ class EventService implements IEventService {
     now: Date = new Date(),
   ): Promise<Result<EventDetailResult, EventError>> {
     const eventLookup = await this.repo.findById(Number(eventId));
+  
     if (eventLookup.ok === false) {
       return Err(new UnexpectedDependencyError(eventLookup.value.message));
     }
-
+  
     if (!eventLookup.value) {
       return Err(new EventNotFoundError("Event not found."));
     }
-
-    const event = resolveEventStatus(eventLookup.value, now);
-    const visibleToAll = event.status === "published" || event.status === "past";
-    if (!visibleToAll && !isAdmin(actor) && !isOwner(event, actor)) {
+  
+    const foundEvent = eventLookup.value;
+    const resolvedEvent = resolveEventStatus(foundEvent, now);
+  
+    const visibleToAll =
+      resolvedEvent.status === "published" || resolvedEvent.status === "past";
+  
+    if (!visibleToAll && !isAdmin(actor) && !isOwner(resolvedEvent, actor)) {
       return Err(new ForbiddenError("You do not have access to this event."));
     }
-
+  
+    const organizerResult = await this.repo.findOrganizerNameById(
+      resolvedEvent.organizerId,
+    );
+  
+    if (organizerResult.ok === false) {
+      return Err(organizerResult.value);
+    }
+  
     return Ok({
-      event,
-      permissions: buildPermissions(event, actor),
+      event: resolvedEvent,
+      permissions: buildPermissions(resolvedEvent, actor),
+      organizerName: organizerResult.value,
     });
   }
 
@@ -436,9 +451,17 @@ class EventService implements IEventService {
       return Err(new UnexpectedDependencyError(saveResult.value.message));
     }
 
+    const resolvedEvent = resolveEventStatus(saveResult.value, now);
+    const organizerResult = await this.repo.findOrganizerNameById(resolvedEvent.organizerId);
+    
+    if (organizerResult.ok === false) {
+      return Err(organizerResult.value);
+    }
+    
     return Ok({
-      event: resolveEventStatus(saveResult.value, now),
-      permissions: buildPermissions(saveResult.value, actor),
+      event: resolvedEvent,
+      permissions: buildPermissions(resolvedEvent, actor),
+      organizerName: organizerResult.value,
     });
   }
 
@@ -476,9 +499,17 @@ class EventService implements IEventService {
       return Err(new UnexpectedDependencyError(saveResult.value.message));
     }
 
+    const resolvedEvent = resolveEventStatus(saveResult.value, now);
+    const organizerResult = await this.repo.findOrganizerNameById(resolvedEvent.organizerId);
+    
+    if (organizerResult.ok === false) {
+      return Err(organizerResult.value);
+    }
+    
     return Ok({
-      event: resolveEventStatus(saveResult.value, now),
-      permissions: buildPermissions(saveResult.value, actor),
+      event: resolvedEvent,
+      permissions: buildPermissions(resolvedEvent, actor),
+      organizerName: organizerResult.value,
     });
   }
 

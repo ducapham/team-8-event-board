@@ -27,40 +27,70 @@
           <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Description</h2>
           <p><%= event.description %></p>
         </div>
-
+      
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Location</h2>
             <p><%= event.location %></p>
           </div>
-
+      
           <div>
             <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Category</h2>
             <p><%= event.category %></p>
           </div>
-
+      
           <div>
             <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Start Time</h2>
             <p><%= event.startDatetime.toLocaleString() %></p>
           </div>
-
+      
           <div>
             <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">End Time</h2>
             <p><%= event.endDatetime.toLocaleString() %></p>
           </div>
-
+      
           <% if (event.capacity !== undefined) { %>
             <div>
               <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Capacity</h2>
-              <p><%= event.capacity %></p>
+              <p><%= event.attendees ? event.attendees.length : 0 %>/<%= event.capacity %></p>
             </div>
           <% } %>
-
+      
           <div>
-            <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Organizer ID</h2>
-            <p><%= event.organizerId %></p>
+            <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">Organizer</h2>
+            <p><%= typeof organizerName !== "undefined" ? organizerName : event.organizerId %></p>
           </div>
         </div>
+
+        <%
+          const currentUserId = session?.authenticatedUser?.userId;
+          const alreadyAttending =
+            currentUserId &&
+            event.attendees &&
+            event.attendees.some((attendee) => attendee.id === currentUserId);
+
+          const canRsvp =
+            currentUserId &&
+            event.status === "published" &&
+            !alreadyAttending;
+        %>
+
+        <% if (canRsvp) { %>
+          <div class="mt-6">
+            <form
+              method="post"
+              action="/events/<%= event.id %>/toggle"
+              class="m-0"
+            >
+              <button
+                type="submit"
+                class="rounded-2xl bg-emerald-600 px-5 py-3 text-white font-semibold hover:bg-emerald-700"
+              >
+                RSVP
+              </button>
+            </form>
+          </div>
+        <% } %>
 
         <% if (permissions?.canPublish || permissions?.canCancel) { %>
           <div class="mt-6 flex flex-wrap gap-3">

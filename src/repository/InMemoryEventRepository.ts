@@ -317,6 +317,19 @@ class InMemoryEventRepository implements IEventRepository {
     return event;
   }
 
+  async findOrganizerNameById(userId: string): Promise<Result<string, EventError>> {
+    const userResult = await this.userRepo.findById(userId);
+  
+    if (!userResult.ok) {
+      return Err(new UnexpectedDependencyError("Unable to read organizer."));
+    }
+  
+    if (!userResult.value) {
+      return Err(new UserNotFoundError(`User with ID ${userId} not found`));
+    }
+  
+    return Ok(userResult.value.displayName);
+  }
   // Feature 11 — Attendee List (Giorgi)
   async getGroupedAttendees(eventId: number) {
     const filtered = this.summary.filter((s) => s.Event.id === eventId);
