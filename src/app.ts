@@ -342,20 +342,14 @@ class ExpressApp implements IApp {
       }),
     );
 
-    // Feature 11 — Attendee List (Giorgi)
-    this.app.get(
-      "/events/:id/attendees",
-      asyncHandler(async (req, res) => {
-        if (!this.requireAuthenticated(req, res)) return;
-
-        const browserSession = recordPageView(sessionStore(req));
-        await this.eventController.showAttendees(
-          res,
-          browserSession,
-          typeof req.params.id === "string" ? req.params.id : ""
-        );
-      }),
-    );
+    // NOTE: A duplicate `GET /events/:id/attendees` registration used to live
+    // here and was labeled "Feature 11 — Attendee List". Per the course
+    // features doc, Feature 11 is "Past Event Archiving" (not attendee list)
+    // and Feature 12 is "Attendee List (Organizer)". Giorgi confirmed (Teams,
+    // 2026-04-23) that he stopped the attendee-list work last week, so
+    // Feature 12 is owned by the block further down inside
+    // `if (this.attendeeListController && this.eventRepo)`. The duplicate
+    // registration has been removed so Express routes to the correct handler.
 
     // Feature 7 — My RSVPs Dashboard (Giorgi)
     this.app.get(
