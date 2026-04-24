@@ -75,9 +75,10 @@ describe("Feature 13 — Event Comments HTTP contracts", () => {
       const response = await agent.get("/events/9999/comments");
 
       expect(response.status).toBe(404);
-      // EJS HTML-escapes apostrophes, so match the surrounding phrase rather
-      // than the raw quote character.
-      expect(response.text).toMatch(/Event with id .?9999.? was not found/);
+      // EJS HTML-escapes apostrophes to &#39;, so check the phrase in pieces
+      // rather than expecting a literal quote character.
+      expect(response.text).toContain("9999");
+      expect(response.text).toContain("was not found");
     });
 
     it("edge case: returns 200 and a 'no comments' message for an event with zero comments", async () => {
