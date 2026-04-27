@@ -27,6 +27,9 @@ model Event {
   time         String
   capacity     Int
   organizerId  String
+  startDatetime DateTime
+  endDatetime  DateTime
+  status       EventStatus     @default(PUBLISHED)
   organizer    User            @relation("OrganizerEvents", fields: [organizerId], references: [id])
   attendees    EventAttendee[]
 }
@@ -46,5 +49,11 @@ model EventAttendee {
 enum EventAttendanceStatus {
   REGISTERED
   WAITLISTED
+  CANCELLED
+}
+
+enum EventStatus{
+  PUBLISHED
+  DRAFT
   CANCELLED
 }
