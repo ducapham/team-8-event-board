@@ -2,9 +2,15 @@ import type { IEvent } from "../event.js";
 import type { Result } from "../lib/result.js";
 import type { EventError } from "../lib/errors.js";
 
+export type UpcomingEventsTimeframe = "all-upcoming" | "this-week" | "this-weekend";
+
 export interface IEventRepository {
   listEvents(): Promise<Result<IEvent[], EventError>>;
-  listUpcomingPublishedEvents(now: Date, category?: string): Promise<Result<IEvent[], EventError>>;
+  listUpcomingPublishedEvents(
+    now: Date,
+    category?: string,
+    timeframe?: UpcomingEventsTimeframe,
+  ): Promise<Result<IEvent[], EventError>>;
   findById(id: number): Promise<Result<IEvent | null, EventError>>;
   save(event: IEvent): Promise<Result<IEvent, EventError>>;
 

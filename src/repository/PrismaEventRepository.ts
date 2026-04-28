@@ -1,4 +1,4 @@
-import type { IEventRepository } from "./EventRepository.js";
+import type { IEventRepository, UpcomingEventsTimeframe } from "./EventRepository.js";
 import type { IEvent } from "../event.js";
 import type { IUserRepository } from "../auth/UserRepository.js";
 import type { IUserRecord } from "../auth/User.js";
@@ -94,6 +94,53 @@ function toStoredCategory(category: string): string {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
+function startOfDay(value: Date): Date {
+  const nextValue = new Date(value.getTime());
+  nextValue.setHours(0, 0, 0, 0);
+  return nextValue;
+}
+
+function addDays(value: Date, days: number): Date {
+  const nextValue = new Date(value.getTime());
+  nextValue.setDate(nextValue.getDate() + days);
+  return nextValue;
+}
+
+function startOfWeek(value: Date): Date {
+  const nextValue = startOfDay(value);
+  const daysSinceMonday = (nextValue.getDay() + 6) % 7;
+  nextValue.setDate(nextValue.getDate() - daysSinceMonday);
+  return nextValue;
+}
+
+function buildUpcomingTimeframeWhere(now: Date, timeframe: UpcomingEventsTimeframe): Prisma.EventWhereInput {
+  if (timeframe === "this-week") {
+    const nextWeek = addDays(startOfWeek(now), 7);
+    return {
+      startDatetime: {
+        gte: now,
+        lt: nextWeek,
+      },
+    };
+  }
+
+  if (timeframe === "this-weekend") {
+    const weekStart = startOfWeek(now);
+    const weekendStart = addDays(weekStart, 5);
+    const nextWeek = addDays(weekStart, 7);
+    return {
+      startDatetime: {
+        gte: weekendStart,
+        lt: nextWeek,
+      },
+    };
+  }
+
+  return {
+    startDatetime: { gte: now },
+  };
+}
+
 function toEvent(model: {
   id: number;
   title: string;
@@ -179,12 +226,16 @@ class PrismaEventRepository implements IEventRepository {
     }
   }
 
-  async listUpcomingPublishedEvents(now: Date, category?: string): Promise<Result<IEvent[], EventError>> {
+  async listUpcomingPublishedEvents(
+    now: Date,
+    category?: string,
+    timeframe: UpcomingEventsTimeframe = "all-upcoming",
+  ): Promise<Result<IEvent[], EventError>> {
     try {
       const events = await this.prisma.event.findMany({
         where: {
           status: EventStatus.PUBLISHED,
-          startDatetime: { gte: now },
+          ...buildUpcomingTimeframeWhere(now, timeframe),
           ...(category
             ? {
                 category: toStoredCategory(category),

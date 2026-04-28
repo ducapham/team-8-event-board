@@ -10,7 +10,7 @@ describe("PrismaEventRepository upcoming published queries", () => {
 
   beforeEach(() => {
     const authUsers = CreateInMemoryUserRepository();
-    const resources = createTestPrismaEventResources(authUsers);
+    const resources = createTestPrismaEventResources(authUsers, fixedNow);
     eventRepository = resources.eventRepository;
     cleanup = resources.cleanup;
   });
@@ -40,5 +40,35 @@ describe("PrismaEventRepository upcoming published queries", () => {
     }
 
     expect(result.value.map((event) => event.id)).toEqual([101, 1]);
+  });
+
+  it("filters published upcoming events to the current week", async () => {
+    const result = await eventRepository.listUpcomingPublishedEvents(
+      fixedNow,
+      undefined,
+      "this-week",
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.value.map((event) => event.id)).toEqual([101, 104, 102]);
+  });
+
+  it("filters published upcoming events to the current weekend", async () => {
+    const result = await eventRepository.listUpcomingPublishedEvents(
+      fixedNow,
+      undefined,
+      "this-weekend",
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.value.map((event) => event.id)).toEqual([102]);
   });
 });
