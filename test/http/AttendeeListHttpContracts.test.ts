@@ -14,7 +14,7 @@
 
 import request from "supertest";
 import type { Express } from "express";
-import { createComposedApp } from "../../src/composition";
+import { createExposedApp } from "../ExposedComposition";
 import type { ILoggingService } from "../../src/service/LoggingService";
 
 function makeSilentLogger(): ILoggingService {
@@ -55,7 +55,7 @@ describe("Feature 12 — Attendee List HTTP contracts", () => {
   let app: Express;
 
   beforeEach(() => {
-    app = createComposedApp(makeSilentLogger()).getExpressApp();
+    app = createExposedApp(makeSilentLogger()).app.getExpressApp();
   });
 
   describe("GET /events/:id/attendees", () => {
