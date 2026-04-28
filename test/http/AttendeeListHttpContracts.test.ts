@@ -26,6 +26,17 @@ function makeSilentLogger(): ILoggingService {
   } as unknown as ILoggingService;
 }
 
+// Match the pattern used by the team's other integration tests: each test
+// gets its own composed app backed entirely by in-memory repos. Production
+// composition is currently mid-migration (EventService is on Prisma but
+// AttendeeListService still reads the in-memory event repo), which would
+// split toggle writes from attendee reads — exactly what these tests
+// shouldn't be exposed to.
+function getExpressApp(logger?: ILoggingService): Express {
+  const { app } = createExposedApp(logger);
+  return (app as unknown as { getExpressApp(): Express }).getExpressApp();
+}
+
 async function loginAs(
   app: Express,
   email: string,
@@ -55,7 +66,7 @@ describe("Feature 12 — Attendee List HTTP contracts", () => {
   let app: Express;
 
   beforeEach(() => {
-    app = createExposedApp(makeSilentLogger()).app.getExpressApp();
+    app = getExpressApp(makeSilentLogger());
   });
 
   describe("GET /events/:id/attendees", () => {
