@@ -33,7 +33,7 @@ function nextWeekday(value: Date, weekday: number): Date {
   return addDays(base, daysAhead);
 }
 
-function buildDemoEvents(now: Date = new Date()): IEvent[] {
+export function createDemoEvents(now: Date = new Date()): IEvent[] {
   const today = startOfDay(now);
   const tomorrowStart = atTime(addDays(today, 1), 18, 0);
   const tomorrowEnd = atTime(addDays(today, 1), 20, 0);
@@ -357,5 +357,5 @@ async getRSVPsByUser(userId: string) {
 }
 
 export function CreateInMemoryEventRepository(userRepo: IUserRepository): IEventRepository {
-  return new InMemoryEventRepository(buildDemoEvents(), userRepo, []);
+  return new InMemoryEventRepository(createDemoEvents(), userRepo, []);
 }
