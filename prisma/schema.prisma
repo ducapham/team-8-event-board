@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
 }
 
 model User {
@@ -27,6 +26,11 @@ model Event {
   time         String
   capacity     Int
   organizerId  String
+  startDatetime DateTime
+  endDatetime  DateTime
+  createdAt    DateTime
+  updatedAt    DateTime
+  status       EventStatus     @default(PUBLISHED)
   organizer    User            @relation("OrganizerEvents", fields: [organizerId], references: [id])
   attendees    EventAttendee[]
 }
@@ -46,5 +50,11 @@ model EventAttendee {
 enum EventAttendanceStatus {
   REGISTERED
   WAITLISTED
+  CANCELLED
+}
+
+enum EventStatus{
+  PUBLISHED
+  DRAFT
   CANCELLED
 }
