@@ -195,6 +195,27 @@ class InMemoryEventRepository implements IEventRepository {
     }
   }
 
+  async listUpcomingPublishedEvents(now: Date, category?: string): Promise<Result<IEvent[], EventError>> {
+    try {
+      const normalizedCategory = category?.trim().toLowerCase();
+      const events = this.events
+        .filter((event) => event.status === "published")
+        .filter((event) => event.startDatetime.getTime() >= now.getTime())
+        .filter((event) => {
+          if (!normalizedCategory) {
+            return true;
+          }
+
+          return event.category.toLowerCase() === normalizedCategory;
+        })
+        .sort((left, right) => left.startDatetime.getTime() - right.startDatetime.getTime());
+
+      return Ok(events);
+    } catch {
+      return Err(new UnexpectedDependencyError("Unable to list upcoming published events."));
+    }
+  }
+
   async findById(id: number): Promise<Result<IEvent | null, EventError>> {
     try {
       const event = this.events.find((candidate) => candidate.id === id) ?? null;
