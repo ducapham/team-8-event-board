@@ -93,6 +93,7 @@ export function createLifecyclePrismaExposedApp(
 
 export function createFilterPrismaExposedApp(
   logger?: ILoggingService,
+  seedNow?: Date,
 ): { app: IApp; eventRepository: IEventRepository } {
   const resolvedLogger = logger ?? CreateLoggingService();
 
@@ -102,7 +103,7 @@ export function createFilterPrismaExposedApp(
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-  const { eventRepository, cleanup } = createTestPrismaEventResources(authUsers);
+  const { eventRepository, cleanup } = createTestPrismaEventResources(authUsers, seedNow);
   lifecycleTestCleanups.push(cleanup);
 
   const eventService = CreateEventService(eventRepository);
