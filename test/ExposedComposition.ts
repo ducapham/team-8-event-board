@@ -90,3 +90,26 @@ export function createLifecyclePrismaExposedApp(
     eventRepository,
   };
 }
+
+export function createFilterPrismaExposedApp(
+  logger?: ILoggingService,
+): { app: IApp; eventRepository: IEventRepository } {
+  const resolvedLogger = logger ?? CreateLoggingService();
+
+  const authUsers = CreateInMemoryUserRepository();
+  const passwordHasher = CreatePasswordHasher();
+  const authService = CreateAuthService(authUsers, passwordHasher);
+  const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
+  const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
+
+  const { eventRepository, cleanup } = createTestPrismaEventResources(authUsers);
+  lifecycleTestCleanups.push(cleanup);
+
+  const eventService = CreateEventService(eventRepository);
+  const eventController = CreateEventController(eventService, resolvedLogger);
+
+  return {
+    app: CreateApp(authController, eventController, resolvedLogger),
+    eventRepository,
+  };
+}
