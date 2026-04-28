@@ -3,13 +3,37 @@ import type { Express } from "express";
 import { createFilterPrismaExposedApp } from "../ExposedComposition";
 
 const EVENTS_PATH = "/events";
+const FIXED_NOW = new Date("2026-04-20T09:00:00");
+const RealDate = Date;
 const READER_EMAIL = "user@app.test";
 const READER_PASSWORD = "password123";
 const STAFF_EMAIL = "staff@app.test";
 const STAFF_PASSWORD = "password123";
 
+function freezeCurrentDate(value: Date): void {
+  const FrozenDate = class extends RealDate {
+    constructor(...args: ConstructorParameters<DateConstructor>) {
+      if (args.length === 0) {
+        super(value);
+        return;
+      }
+
+      super(...args);
+    }
+
+    static now(): number {
+      return value.getTime();
+    }
+  } as DateConstructor;
+
+  FrozenDate.parse = RealDate.parse;
+  FrozenDate.UTC = RealDate.UTC;
+
+  global.Date = FrozenDate;
+}
+
 function getExpressApp(): Express {
-  const { app } = createFilterPrismaExposedApp();
+  const { app } = createFilterPrismaExposedApp(undefined, FIXED_NOW);
   return (app as unknown as { getExpressApp(): Express }).getExpressApp();
 }
 
@@ -35,7 +59,12 @@ describe(`GET ${EVENTS_PATH} — filter integration`, () => {
   let app: Express;
 
   beforeEach(() => {
+    freezeCurrentDate(FIXED_NOW);
     app = getExpressApp();
+  });
+
+  afterEach(() => {
+    global.Date = RealDate;
   });
 
   it("redirects unauthenticated normal requests to login", async () => {
@@ -62,8 +91,8 @@ describe(`GET ${EVENTS_PATH} — filter integration`, () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain("Local Event Board");
     expect(res.text).toContain("Neighborhood Social Mixer");
+    expect(res.text).toContain("Park Cleanup Drive");
     expect(res.text).toContain("Weekend Art Walk");
-    expect(res.text).not.toContain("Park Cleanup Drive");
   });
 
   it("returns only the list fragment for a valid HTMX filter request", async () => {
@@ -114,8 +143,8 @@ describe(`GET ${EVENTS_PATH} — filter integration`, () => {
 
     expect(res.status).toBe(200);
     expect(res.text).toContain("Neighborhood Social Mixer");
+    expect(res.text).toContain("Park Cleanup Drive");
     expect(res.text).not.toContain("Weekend Art Walk");
-    expect(res.text).not.toContain("Park Cleanup Drive");
   });
 
   it("includes the organizer's own draft in filtered results for staff", async () => {
