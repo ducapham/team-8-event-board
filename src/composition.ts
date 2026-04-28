@@ -10,6 +10,7 @@ import { CreateInMemoryEventRepository } from "./repository/InMemoryEventReposit
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
+import { createRuntimePrismaEventResources } from "./repository/PrismaEventBootstrap";
 // Feature 12 — Attendee List
 import { CreateAttendeeListService } from "./service/AttendeeListService";
 import { CreateAttendeeListController } from "./controller/AttendeeListController";
@@ -28,10 +29,13 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
-  // Event management wiring
-  const eventRepository = CreateInMemoryEventRepository(authUsers);
-  const eventService = CreateEventService(eventRepository);
+  // Feature 5 lifecycle publish/cancel flows now use Prisma-backed event data.
+  const { eventRepository: prismaEventRepository } = createRuntimePrismaEventResources(authUsers);
+  const eventService = CreateEventService(prismaEventRepository);
   const eventController = CreateEventController(eventService, resolvedLogger);
+
+  // Other repository consumers stay on the existing in-memory path for now.
+  const eventRepository = CreateInMemoryEventRepository(authUsers);
 
   // Feature 12 — Attendee List
   const attendeeListService = CreateAttendeeListService(eventRepository);
