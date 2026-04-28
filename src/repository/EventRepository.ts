@@ -4,6 +4,7 @@ import type { EventError } from "../lib/errors.js";
 
 export interface IEventRepository {
   listEvents(): Promise<Result<IEvent[], EventError>>;
+  listUpcomingPublishedEvents(now: Date, category?: string): Promise<Result<IEvent[], EventError>>;
   findById(id: number): Promise<Result<IEvent | null, EventError>>;
   save(event: IEvent): Promise<Result<IEvent, EventError>>;
 

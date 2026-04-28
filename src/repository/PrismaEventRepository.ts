@@ -85,6 +85,15 @@ function toPrismaEventStatus(status: IEvent["status"]): EventStatus {
   }
 }
 
+function toStoredCategory(category: string): string {
+  const normalized = category.trim().toLowerCase();
+  if (!normalized) {
+    return normalized;
+  }
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
 function toEvent(model: {
   id: number;
   title: string;
@@ -167,6 +176,34 @@ class PrismaEventRepository implements IEventRepository {
       return Ok(events.map((event) => toEvent(event)));
     } catch {
       return Err(new UnexpectedDependencyError("Unable to list events."));
+    }
+  }
+
+  async listUpcomingPublishedEvents(now: Date, category?: string): Promise<Result<IEvent[], EventError>> {
+    try {
+      const events = await this.prisma.event.findMany({
+        where: {
+          status: EventStatus.PUBLISHED,
+          startDatetime: { gte: now },
+          ...(category
+            ? {
+                category: toStoredCategory(category),
+              }
+            : {}),
+        },
+        include: {
+          attendees: {
+            include: { user: true },
+          },
+        },
+        orderBy: {
+          startDatetime: "asc",
+        },
+      });
+
+      return Ok(events.map((event) => toEvent(event)));
+    } catch {
+      return Err(new UnexpectedDependencyError("Unable to list upcoming published events."));
     }
   }
 
