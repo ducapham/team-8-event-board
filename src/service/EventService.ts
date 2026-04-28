@@ -324,48 +324,44 @@ class EventService implements IEventService {
       return filtersResult;
     }
 
-    const eventsResult = await this.repo.listEvents();
-    if (eventsResult.ok === false) {
-      return Err(new UnexpectedDependencyError(eventsResult.value.message));
+    const filters = filtersResult.value;
+    const publishedEventsResult = await this.repo.listUpcomingPublishedEvents(
+      now,
+      filters.category ?? undefined,
+      filters.timeframe,
+    );
+    if (publishedEventsResult.ok === false) {
+      return Err(new UnexpectedDependencyError(publishedEventsResult.value.message));
     }
 
-    const filters = filtersResult.value;
-    const nextWeek = addDays(startOfWeek(now), 7);
-    const weekendStart = addDays(startOfWeek(now), 5);
-    const weekendEnd = nextWeek;
+    const queryMatches = filters.query
+      ? await this.repo.searchEvents(filters.query)
+      : [];
+    const queryMatchIds = new Set(queryMatches.map((event) => event.id));
 
-    const filteredEvents = eventsResult.value
+    const publishedEvents = publishedEventsResult.value
       .map((event) => resolveEventStatus(event, now))
-      .filter((event) => {
-        const eventIsOwnedDraft = event.status === "draft" && viewerId !== undefined && event.organizerId === viewerId;
-        const eventIsPublishedUpcoming = event.status === "published" && event.startDatetime.getTime() >= now.getTime();
-        return eventIsPublishedUpcoming || eventIsOwnedDraft;
-      })
+      .filter((event) => (filters.query ? queryMatchIds.has(event.id) : true));
+
+    const allEventsResult = await this.repo.listEvents();
+    if (allEventsResult.ok === false) {
+      return Err(new UnexpectedDependencyError(allEventsResult.value.message));
+    }
+
+    const ownDrafts = allEventsResult.value
+      .map((event) => resolveEventStatus(event, now))
+      .filter((event) => event.status === "draft")
+      .filter((event) => viewerId !== undefined && event.organizerId === viewerId)
       .filter((event) => (filters.category ? event.category.toLowerCase() === filters.category : true))
       .filter((event) => {
-        if (filters.timeframe === "this-week") {
-          return event.startDatetime.getTime() < nextWeek.getTime();
+        if (!filters.query) {
+          return true;
         }
 
-        if (filters.timeframe === "this-weekend") {
-          return (
-            event.startDatetime.getTime() >= weekendStart.getTime() &&
-            event.startDatetime.getTime() < weekendEnd.getTime()
-          );
-        }
+        return queryMatchIds.has(event.id);
+      });
 
-        return true;
-      })
-      .filter((event) => {
-        if (!filters.query) return true;
-        const search = filters.query.toLowerCase();
-        return (
-          event.title.toLowerCase().includes(search) ||
-          event.description.toLowerCase().includes(search) ||
-          event.location.toLowerCase().includes(search) ||
-          event.category.toLowerCase().includes(search)
-        );
-      })
+    const filteredEvents = [...publishedEvents, ...ownDrafts]
       .sort((left, right) => left.startDatetime.getTime() - right.startDatetime.getTime());
 
     return Ok({

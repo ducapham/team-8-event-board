@@ -1,6 +1,6 @@
 import request from "supertest";
 import type { Express } from "express";
-import { createExposedApp } from "../ExposedComposition";
+import { createFilterPrismaExposedApp } from "../ExposedComposition";
 
 const EVENTS_PATH = "/events";
 const READER_EMAIL = "user@app.test";
@@ -9,7 +9,7 @@ const STAFF_EMAIL = "staff@app.test";
 const STAFF_PASSWORD = "password123";
 
 function getExpressApp(): Express {
-  const { app } = createExposedApp();
+  const { app } = createFilterPrismaExposedApp();
   return (app as unknown as { getExpressApp(): Express }).getExpressApp();
 }
 
