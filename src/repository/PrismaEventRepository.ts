@@ -127,7 +127,23 @@ class PrismaEventRepository implements IEventRepository {
     } catch {
       return Err(new UnexpectedDependencyError("Unable to update RSVP."));
     }
-  } 
+  }
+  async searchEvents(query: string): Promise<IEvent[]> {
+    if (!query) {
+      return this.prisma.event.findMany() as Promise<IEvent[]>;
+    }
+ 
+    return this.prisma.event.findMany({
+      where: {
+        OR: [
+          { title:       { contains: query } },
+          { description: { contains: query } },
+          { location:    { contains: query } },
+          { category:    { contains: query } },
+        ],
+      },
+    }) as Promise<IEvent[]>;
+  }
 }
 
 export function CreatePrismaEventRepository(
