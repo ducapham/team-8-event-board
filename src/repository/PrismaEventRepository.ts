@@ -9,9 +9,46 @@ import {
   RSVPNotAllowedError,
   UnexpectedDependencyError,
 } from "../lib/errors.js";
-import { PrismaClient, EventAttendanceStatus, EventStatus, Prisma} from "@prisma/client";
+
+import { EventAttendanceStatus, PrismaClient, Prisma } from "@prisma/client";
 
 type RSVPStatus = EventAttendanceStatus | "Not Registered";
+
+function toEvent(model: {
+  id: number;
+  title: string;
+  description: string;
+  location: string;
+  category: string;
+  date: Date;
+  time: string;
+  capacity: number;
+  organizerId: string;
+  startDatetime: Date;
+  endDatetime: Date;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): IEvent {
+  return {
+    id: model.id,
+    title: model.title,
+    description: model.description,
+    location: model.location,
+    category: model.category,
+    date: model.date,
+    time: model.time,
+    capacity: model.capacity,
+    organizerId: model.organizerId,
+    startDatetime: model.startDatetime,
+    endDatetime: model.endDatetime,
+    status: model.status as IEvent["status"],
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+    attendees: [],
+    waitlist: [],
+  };
+}
 
 class PrismaEventRepository implements IEventRepository {
   constructor(
@@ -22,7 +59,7 @@ class PrismaEventRepository implements IEventRepository {
   async findById(id: number): Promise<Result<IEvent | null, EventError>> {
     try {
       const event = await this.prisma.event.findUnique({ where: { id } });
-      return Ok(event as IEvent);
+      return Ok(event ? toEvent(event) : null);
     } catch {
       return Err(new UnexpectedDependencyError("Unable to read the event."));
     }
@@ -57,7 +94,7 @@ class PrismaEventRepository implements IEventRepository {
       return Err(new UserNotFoundError(`User with ID ${userId} not found`));
     }
 
-    if (event.status === EventStatus.CANCELLED) {
+    if (event.status === "cancelled") {
       return Err(new RSVPNotAllowedError("Cannot RSVP to a cancelled event."));
     }
 
@@ -90,10 +127,10 @@ class PrismaEventRepository implements IEventRepository {
           },
         });
       } else if (status === EventAttendanceStatus.REGISTERED) {
-        await this.prisma.$transaction(async (tx:Prisma.TransactionClient) => {
+        await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           await tx.eventAttendee.update({
             where: { userId_eventId: { userId, eventId } },
-            data: { status: EventAttendanceStatus.CANCELLED},
+            data: { status: EventAttendanceStatus.CANCELLED },
           });
 
           const nextWaitlisted = await tx.eventAttendee.findFirst({
@@ -130,10 +167,11 @@ class PrismaEventRepository implements IEventRepository {
   }
   async searchEvents(query: string): Promise<IEvent[]> {
     if (!query) {
-      return this.prisma.event.findMany() as Promise<IEvent[]>;
+      const rows = await this.prisma.event.findMany();
+      return rows.map(toEvent);
     }
- 
-    return this.prisma.event.findMany({
+
+    const rows = await this.prisma.event.findMany({
       where: {
         OR: [
           { title:       { contains: query } },
@@ -142,7 +180,8 @@ class PrismaEventRepository implements IEventRepository {
           { category:    { contains: query } },
         ],
       },
-    }) as Promise<IEvent[]>;
+    });
+    return rows.map(toEvent);
   }
 }
 
