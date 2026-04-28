@@ -1,6 +1,7 @@
 import type { IEventRepository } from "./EventRepository.js";
 import type { IEvent } from "../event.js";
 import type { IUserRepository } from "../auth/UserRepository.js";
+import type { IUserRecord } from "../auth/User.js";
 import { Err, Ok, type Result } from "../lib/result.js";
 import {
   EventError,
@@ -10,9 +11,79 @@ import {
   UnexpectedDependencyError,
 } from "../lib/errors.js";
 
-import { EventAttendanceStatus, PrismaClient, Prisma } from "@prisma/client";
+import {
+  EventAttendanceStatus,
+  EventStatus,
+  PrismaClient,
+  Prisma,
+} from "@prisma/client";
 
 type RSVPStatus = EventAttendanceStatus | "Not Registered";
+
+type EventWithAttendees = Prisma.EventGetPayload<{
+  include: { attendees: { include: { user: true } } };
+}>;
+
+type PrismaAttendeeSummary = {
+  status: "Registered" | "Waitlisted" | "Cancelled";
+  date: Date;
+  time: string;
+  Event: IEvent;
+  User: IUserRecord;
+};
+
+function toSummaryStatus(
+  status: EventAttendanceStatus,
+): PrismaAttendeeSummary["status"] {
+  switch (status) {
+    case EventAttendanceStatus.REGISTERED:
+      return "Registered";
+    case EventAttendanceStatus.WAITLISTED:
+      return "Waitlisted";
+    case EventAttendanceStatus.CANCELLED:
+      return "Cancelled";
+  }
+}
+
+function toUserRecord(user: {
+  id: string;
+  email: string;
+  displayName: string;
+  role: string;
+  passwordHash: string;
+}): IUserRecord {
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role as IUserRecord["role"],
+    passwordHash: user.passwordHash,
+  };
+}
+
+function toEventStatus(status: EventStatus): IEvent["status"] {
+  switch (status) {
+    case EventStatus.DRAFT:
+      return "draft";
+    case EventStatus.PUBLISHED:
+      return "published";
+    case EventStatus.CANCELLED:
+      return "cancelled";
+  }
+}
+
+function toPrismaEventStatus(status: IEvent["status"]): EventStatus {
+  switch (status) {
+    case "draft":
+      return EventStatus.DRAFT;
+    case "published":
+      return EventStatus.PUBLISHED;
+    case "cancelled":
+      return EventStatus.CANCELLED;
+    case "past":
+      throw new Error("Past events are derived and cannot be persisted directly.");
+  }
+}
 
 function toEvent(model: {
   id: number;
@@ -26,10 +97,22 @@ function toEvent(model: {
   organizerId: string;
   startDatetime: Date;
   endDatetime: Date;
-  status: string;
+  status: EventStatus;
   createdAt: Date;
   updatedAt: Date;
+  attendees?: Array<{
+    status: EventAttendanceStatus;
+    user: {
+      id: string;
+      email: string;
+      displayName: string;
+      role: string;
+      passwordHash: string;
+    };
+  }>;
 }): IEvent {
+  const attendees = model.attendees ?? [];
+
   return {
     id: model.id,
     title: model.title,
@@ -42,11 +125,15 @@ function toEvent(model: {
     organizerId: model.organizerId,
     startDatetime: model.startDatetime,
     endDatetime: model.endDatetime,
-    status: model.status as IEvent["status"],
+    status: toEventStatus(model.status),
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
-    attendees: [],
-    waitlist: [],
+    attendees: attendees
+      .filter((entry) => entry.status === EventAttendanceStatus.REGISTERED)
+      .map((entry) => toUserRecord(entry.user)),
+    waitlist: attendees
+      .filter((entry) => entry.status === EventAttendanceStatus.WAITLISTED)
+      .map((entry) => toUserRecord(entry.user)),
   };
 }
 
@@ -56,13 +143,111 @@ class PrismaEventRepository implements IEventRepository {
     private userRepo: IUserRepository,
   ) {}
 
+  private async findEventRowById(id: number): Promise<EventWithAttendees | null> {
+    return this.prisma.event.findUnique({
+      where: { id },
+      include: {
+        attendees: {
+          include: { user: true },
+        },
+      },
+    });
+  }
+
+  async listEvents(): Promise<Result<IEvent[], EventError>> {
+    try {
+      const events = await this.prisma.event.findMany({
+        include: {
+          attendees: {
+            include: { user: true },
+          },
+        },
+      });
+
+      return Ok(events.map((event) => toEvent(event)));
+    } catch {
+      return Err(new UnexpectedDependencyError("Unable to list events."));
+    }
+  }
+
   async findById(id: number): Promise<Result<IEvent | null, EventError>> {
     try {
-      const event = await this.prisma.event.findUnique({ where: { id } });
+      const event = await this.findEventRowById(id);
       return Ok(event ? toEvent(event) : null);
     } catch {
       return Err(new UnexpectedDependencyError("Unable to read the event."));
     }
+  }
+
+  async save(event: IEvent): Promise<Result<IEvent, EventError>> {
+    try {
+      await this.prisma.event.update({
+        where: { id: event.id },
+        data: {
+          title: event.title,
+          description: event.description,
+          location: event.location,
+          category: event.category,
+          date: event.date,
+          time: event.time,
+          capacity: event.capacity ?? 0,
+          organizerId: event.organizerId,
+          startDatetime: event.startDatetime,
+          endDatetime: event.endDatetime,
+          createdAt: event.createdAt,
+          updatedAt: event.updatedAt,
+          status: toPrismaEventStatus(event.status),
+        },
+      });
+
+      const refreshed = await this.findEventRowById(event.id);
+      if (!refreshed) {
+        return Err(new EventNotFoundError(`Event with ID ${event.id} not found`));
+      }
+
+      return Ok(toEvent(refreshed));
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        return Err(new EventNotFoundError(`Event with ID ${event.id} not found`));
+      }
+
+      if (error instanceof Error && error.message.includes("Past events are derived")) {
+        return Err(new UnexpectedDependencyError(error.message));
+      }
+
+      return Err(new UnexpectedDependencyError("Unable to save the event."));
+    }
+  }
+
+  async create(event: IEvent): Promise<IEvent> {
+    const created = await this.prisma.event.create({
+      data: {
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        category: event.category,
+        date: event.date,
+        time: event.time,
+        capacity: event.capacity ?? 0,
+        organizerId: event.organizerId,
+        startDatetime: event.startDatetime,
+        endDatetime: event.endDatetime,
+        createdAt: event.createdAt,
+        updatedAt: event.updatedAt,
+        status: toPrismaEventStatus(event.status),
+      },
+      include: {
+        attendees: {
+          include: { user: true },
+        },
+      },
+    });
+
+    return toEvent(created);
   }
 
   async findOrganizerNameById(userId: string): Promise<Result<string, EventError>> {
@@ -165,9 +350,16 @@ class PrismaEventRepository implements IEventRepository {
       return Err(new UnexpectedDependencyError("Unable to update RSVP."));
     }
   }
+
   async searchEvents(query: string): Promise<IEvent[]> {
     if (!query) {
-      const rows = await this.prisma.event.findMany();
+      const rows = await this.prisma.event.findMany({
+        include: {
+          attendees: {
+            include: { user: true },
+          },
+        },
+      });
       return rows.map(toEvent);
     }
 
@@ -180,8 +372,74 @@ class PrismaEventRepository implements IEventRepository {
           { category:    { contains: query } },
         ],
       },
+      include: {
+        attendees: {
+          include: { user: true },
+        },
+      },
     });
     return rows.map(toEvent);
+  }
+
+  async getRSVPsByUser(userId: string): Promise<PrismaAttendeeSummary[]> {
+    const rows = await this.prisma.eventAttendee.findMany({
+      where: { userId },
+      include: {
+        user: true,
+        event: {
+          include: {
+            attendees: {
+              include: { user: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return rows.map((row): PrismaAttendeeSummary & { event: IEvent } => ({
+      status: toSummaryStatus(row.status),
+      date: row.createdAt,
+      time: row.createdAt.toISOString(),
+      Event: toEvent(row.event),
+      User: toUserRecord(row.user),
+      event: toEvent(row.event),
+    }));
+  }
+
+  async getGroupedAttendees(eventId: number): Promise<{
+    going: PrismaAttendeeSummary[];
+    waitlisted: PrismaAttendeeSummary[];
+    cancelled: PrismaAttendeeSummary[];
+  }> {
+    const rows = await this.prisma.eventAttendee.findMany({
+      where: { eventId },
+      include: {
+        user: true,
+        event: {
+          include: {
+            attendees: {
+              include: { user: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const summaries: PrismaAttendeeSummary[] = rows.map((row) => ({
+      status: toSummaryStatus(row.status),
+      date: row.createdAt,
+      time: row.createdAt.toISOString(),
+      Event: toEvent(row.event),
+      User: toUserRecord(row.user),
+    }));
+
+    return {
+      going: summaries.filter((row) => row.status === "Registered"),
+      waitlisted: summaries.filter((row) => row.status === "Waitlisted"),
+      cancelled: summaries.filter((row) => row.status === "Cancelled"),
+    };
   }
 }
 
