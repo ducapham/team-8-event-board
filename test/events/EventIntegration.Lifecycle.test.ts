@@ -1,6 +1,6 @@
 import request from "supertest";
 import type { Express } from "express";
-import { createExposedApp } from "../ExposedComposition";
+import { createLifecyclePrismaExposedApp } from "../ExposedComposition";
 import { IEventRepository } from "../../src/repository/EventRepository";
 
 const READER_EMAIL = "user@app.test";
@@ -11,7 +11,7 @@ const ADMIN_EMAIL = "admin@app.test";
 const ADMIN_PASSWORD = "password123";
 
 function getExpressApp(): { app: Express; eventRepository: IEventRepository } {
-  const { app, eventRepository } = createExposedApp();
+  const { app, eventRepository } = createLifecyclePrismaExposedApp();
   const expressApp = (app as unknown as { getExpressApp(): Express }).getExpressApp();
   return { app: expressApp, eventRepository };
 }
