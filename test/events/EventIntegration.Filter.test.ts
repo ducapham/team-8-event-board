@@ -5,6 +5,15 @@ import { createFilterPrismaExposedApp } from "../ExposedComposition";
 const EVENTS_PATH = "/events";
 const FIXED_NOW = new Date("2026-04-20T09:00:00");
 const RealDate = Date;
+type FrozenDateArgs =
+  | []
+  | [string | number | Date]
+  | [number, number]
+  | [number, number, number]
+  | [number, number, number, number]
+  | [number, number, number, number, number]
+  | [number, number, number, number, number, number]
+  | [number, number, number, number, number, number, number];
 const READER_EMAIL = "user@app.test";
 const READER_PASSWORD = "password123";
 const STAFF_EMAIL = "staff@app.test";
@@ -12,13 +21,47 @@ const STAFF_PASSWORD = "password123";
 
 function freezeCurrentDate(value: Date): void {
   const FrozenDate = class extends RealDate {
-    constructor(...args: ConstructorParameters<DateConstructor>) {
-      if (args.length === 0) {
-        super(value);
-        return;
+    constructor(...dateArgs: FrozenDateArgs) {
+      switch (dateArgs.length) {
+        case 0:
+          super(value);
+          return;
+        case 1:
+          super(dateArgs[0]);
+          return;
+        case 2:
+          super(dateArgs[0], dateArgs[1]);
+          return;
+        case 3:
+          super(dateArgs[0], dateArgs[1], dateArgs[2]);
+          return;
+        case 4:
+          super(dateArgs[0], dateArgs[1], dateArgs[2], dateArgs[3]);
+          return;
+        case 5:
+          super(dateArgs[0], dateArgs[1], dateArgs[2], dateArgs[3], dateArgs[4]);
+          return;
+        case 6:
+          super(
+            dateArgs[0],
+            dateArgs[1],
+            dateArgs[2],
+            dateArgs[3],
+            dateArgs[4],
+            dateArgs[5],
+          );
+          return;
+        default:
+          super(
+            dateArgs[0],
+            dateArgs[1],
+            dateArgs[2],
+            dateArgs[3],
+            dateArgs[4],
+            dateArgs[5],
+            dateArgs[6],
+          );
       }
-
-      super(...args);
     }
 
     static now(): number {
