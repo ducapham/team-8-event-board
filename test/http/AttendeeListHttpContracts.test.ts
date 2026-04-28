@@ -14,7 +14,7 @@
 
 import request from "supertest";
 import type { Express } from "express";
-import { createComposedApp } from "../../src/composition";
+import { createExposedApp } from "../ExposedComposition";
 import type { ILoggingService } from "../../src/service/LoggingService";
 
 function makeSilentLogger(): ILoggingService {
@@ -24,6 +24,17 @@ function makeSilentLogger(): ILoggingService {
     error: jest.fn(),
     debug: jest.fn(),
   } as unknown as ILoggingService;
+}
+
+// Match the pattern used by the team's other integration tests: each test
+// gets its own composed app backed entirely by in-memory repos. Production
+// composition is currently mid-migration (EventService is on Prisma but
+// AttendeeListService still reads the in-memory event repo), which would
+// split toggle writes from attendee reads — exactly what these tests
+// shouldn't be exposed to.
+function getExpressApp(logger?: ILoggingService): Express {
+  const { app } = createExposedApp(logger);
+  return (app as unknown as { getExpressApp(): Express }).getExpressApp();
 }
 
 async function loginAs(
@@ -55,7 +66,7 @@ describe("Feature 12 — Attendee List HTTP contracts", () => {
   let app: Express;
 
   beforeEach(() => {
-    app = createComposedApp(makeSilentLogger()).getExpressApp();
+    app = getExpressApp(makeSilentLogger());
   });
 
   describe("GET /events/:id/attendees", () => {
