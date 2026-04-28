@@ -13,6 +13,7 @@ import type { IEventRepository } from "./EventRepository.js";
 type BootstrapOptions = {
   databaseUrl?: string;
   reset?: boolean;
+  seedNow?: Date;
 };
 
 type PrismaEventResources = {
@@ -92,7 +93,7 @@ function ensureSchema(database: Database.Database): void {
   }
 }
 
-function seedDemoData(database: Database.Database): void {
+function seedDemoData(database: Database.Database, seedNow?: Date): void {
   const insertUser = database.prepare(`
     INSERT OR IGNORE INTO "User" ("id", "email", "displayName", "role", "passwordHash")
     VALUES (@id, @email, @displayName, @role, @passwordHash)
@@ -139,7 +140,7 @@ function seedDemoData(database: Database.Database): void {
   });
 
   const insertEvents = database.transaction(() => {
-    for (const event of createDemoEvents()) {
+    for (const event of createDemoEvents(seedNow)) {
       insertEvent.run({
         id: event.id,
         title: event.title,
@@ -163,7 +164,7 @@ function seedDemoData(database: Database.Database): void {
   insertEvents();
 }
 
-function ensureDatabaseReady(databasePath: string, reset: boolean): void {
+function ensureDatabaseReady(databasePath: string, reset: boolean, seedNow?: Date): void {
   if (reset && fs.existsSync(databasePath)) {
     fs.rmSync(databasePath, { force: true });
   }
@@ -174,7 +175,7 @@ function ensureDatabaseReady(databasePath: string, reset: boolean): void {
   try {
     database.pragma("foreign_keys = ON");
     ensureSchema(database);
-    seedDemoData(database);
+    seedDemoData(database, seedNow);
   } finally {
     database.close();
   }
@@ -191,7 +192,7 @@ export function createPrismaEventResources(
   const databaseUrl = options.databaseUrl ?? process.env.DATABASE_URL ?? "file:./prisma/dev.db";
   const databasePath = toSqliteFilePath(databaseUrl);
 
-  ensureDatabaseReady(databasePath, options.reset ?? false);
+  ensureDatabaseReady(databasePath, options.reset ?? false, options.seedNow);
   process.env.DATABASE_URL = databaseUrl;
 
   const adapter = new PrismaBetterSqlite3({ url: databaseUrl });
@@ -218,9 +219,11 @@ export function createRuntimePrismaEventResources(
 
 export function createTestPrismaEventResources(
   userRepo: IUserRepository,
+  seedNow?: Date,
 ): PrismaEventResources {
   return createPrismaEventResources(userRepo, {
     databaseUrl: createTempDatabaseUrl(),
     reset: true,
+    seedNow,
   });
 }

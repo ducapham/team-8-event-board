@@ -1,4 +1,4 @@
-import type { IEventRepository } from "./EventRepository.js";
+import type { IEventRepository, UpcomingEventsTimeframe } from "./EventRepository.js";
 import type { IEvent } from "../event.js";
 import type { IUserRepository } from "../auth/UserRepository.js";
 import { Err, Ok, type Result } from "../lib/result.js";
@@ -31,6 +31,13 @@ function nextWeekday(value: Date, weekday: number): Date {
   }
 
   return addDays(base, daysAhead);
+}
+
+function startOfWeek(value: Date): Date {
+  const nextValue = startOfDay(value);
+  const daysSinceMonday = (nextValue.getDay() + 6) % 7;
+  nextValue.setDate(nextValue.getDate() - daysSinceMonday);
+  return nextValue;
 }
 
 export function createDemoEvents(now: Date = new Date()): IEvent[] {
@@ -195,9 +202,15 @@ class InMemoryEventRepository implements IEventRepository {
     }
   }
 
-  async listUpcomingPublishedEvents(now: Date, category?: string): Promise<Result<IEvent[], EventError>> {
+  async listUpcomingPublishedEvents(
+    now: Date,
+    category?: string,
+    timeframe: UpcomingEventsTimeframe = "all-upcoming",
+  ): Promise<Result<IEvent[], EventError>> {
     try {
       const normalizedCategory = category?.trim().toLowerCase();
+      const nextWeek = addDays(startOfWeek(now), 7);
+      const weekendStart = addDays(startOfWeek(now), 5);
       const events = this.events
         .filter((event) => event.status === "published")
         .filter((event) => event.startDatetime.getTime() >= now.getTime())
@@ -207,6 +220,20 @@ class InMemoryEventRepository implements IEventRepository {
           }
 
           return event.category.toLowerCase() === normalizedCategory;
+        })
+        .filter((event) => {
+          if (timeframe === "this-week") {
+            return event.startDatetime.getTime() < nextWeek.getTime();
+          }
+
+          if (timeframe === "this-weekend") {
+            return (
+              event.startDatetime.getTime() >= weekendStart.getTime() &&
+              event.startDatetime.getTime() < nextWeek.getTime()
+            );
+          }
+
+          return true;
         })
         .sort((left, right) => left.startDatetime.getTime() - right.startDatetime.getTime());
 
