@@ -390,18 +390,30 @@ class InMemoryEventRepository implements IEventRepository {
   }
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
-async getRSVPsByUser(userId: string) {
-  return this.summary
-    .filter((s) => s.User.id === userId)
-    .map((s) => ({
-      event: s.Event,
-      status: s.status,
-      date: s.date,
-      time: s.time,
-    }));
+  async getRSVPsByUser(userId: string) {
+    return this.summary
+      .filter((s) => s.User.id === userId)
+      .map((s) => ({
+        event: s.Event,
+        status: s.status,
+        date: s.date,
+        time: s.time,
+      }));
+  }
 
-}
+  // Feature 11 — Past Event Archiving (Giorgi)
+  async getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>> {
+    const now = new Date();
 
+    const events = this.events
+      .filter((e) => e.endDatetime < now)
+      .filter((e) =>
+        !category || e.category.toLowerCase() === category.toLowerCase()
+      )
+      .sort((a, b) => b.startDatetime.getTime() - a.startDatetime.getTime());
+
+    return Ok(events);
+  }
 }
 
 export function CreateInMemoryEventRepository(userRepo: IUserRepository): IEventRepository {

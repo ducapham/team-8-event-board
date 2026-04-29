@@ -511,23 +511,7 @@ class EventService implements IEventService {
 
   // Feature 11 — Past Event Archiving (Giorgi)
   async getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>> {
-    const result = await this.repo.listEvents();
-
-    if (result.ok === false) {
-      return result;
-    }
-
-    const now = new Date();
-
-    const pastEvents = result.value
-      .map(e => resolveEventStatus(e, now))
-      .filter(e =>
-        e.status === "past" &&
-        (!category || e.category.toLowerCase() === category.toLowerCase())
-      )
-      .sort((a, b) => b.startDatetime.getTime() - a.startDatetime.getTime());
-
-    return Ok(pastEvents);
+    return this.repo.getArchivedEvents(category);
   }
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
