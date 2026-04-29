@@ -387,7 +387,8 @@ class EventController implements IEventController {
 
     if (res.req.get("HX-Request") === "true" && res.req.query.from === "my-rsvps") {
       const result = await this.service.getMyRSVPs(
-        session.authenticatedUser?.userId ?? ""
+        session.authenticatedUser?.userId ?? "",
+        session.authenticatedUser?.role ?? ""
       );
 
       return res.render("partials/my-rsvps-columns", {
@@ -554,7 +555,7 @@ class EventController implements IEventController {
       return;
     }
 
-    const result = await this.service.getMyRSVPs(userId);
+    const result = await this.service.getMyRSVPs(userId, session.authenticatedUser?.role ?? "");
 
     if (result.ok === false) {
       const status = this.mapErrorStatus(result.value);

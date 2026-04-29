@@ -28,5 +28,6 @@ export interface IEventRepository {
   getRSVPsByUser(userId: string): Promise<any>;
 
   getGroupedAttendees(eventId: number): Promise<any>;
+  isUserOrganizer(userId: string): Promise<boolean>;
 }
 
