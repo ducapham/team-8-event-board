@@ -413,6 +413,7 @@ class InMemoryEventRepository implements IEventRepository {
       .sort((a, b) => b.startDatetime.getTime() - a.startDatetime.getTime());
 
     return Ok(events);
+  }
 
   async isUserOrganizer(userId: string): Promise<boolean> {
     return this.events.some((e) => e.organizerId === userId);
