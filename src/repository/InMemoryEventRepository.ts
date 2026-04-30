@@ -401,6 +401,19 @@ class InMemoryEventRepository implements IEventRepository {
       }));
   }
 
+  // Feature 11 — Past Event Archiving (Giorgi)
+  async getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>> {
+    const now = new Date();
+
+    const events = this.events
+      .filter((e) => e.endDatetime < now)
+      .filter((e) =>
+        !category || e.category.toLowerCase() === category.toLowerCase()
+      )
+      .sort((a, b) => b.startDatetime.getTime() - a.startDatetime.getTime());
+
+    return Ok(events);
+
   async isUserOrganizer(userId: string): Promise<boolean> {
     return this.events.some((e) => e.organizerId === userId);
   }

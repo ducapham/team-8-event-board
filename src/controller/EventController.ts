@@ -386,10 +386,11 @@ class EventController implements IEventController {
     }
 
     if (res.req.get("HX-Request") === "true" && res.req.query.from === "my-rsvps") {
-      const result = await this.service.getMyRSVPs(
-        session.authenticatedUser?.userId ?? "",
-        session.authenticatedUser?.role ?? ""
-      );
+      const user = session.authenticatedUser!;
+      const userId = user.userId;
+      const role = user.role.toLowerCase();
+
+      const result = await this.service.getMyRSVPs(userId, role);
 
       return res.render("partials/my-rsvps-columns", {
         upcoming: result.value.upcoming,
@@ -542,20 +543,12 @@ class EventController implements IEventController {
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
   async showMyRSVPs(res: Response, session: IAppBrowserSession, query: any): Promise<void> {
-    const userId = session.authenticatedUser?.userId ?? "";
-    const role = session.authenticatedUser?.role;
+    const user = session.authenticatedUser!;
+    const userId = user.userId;
+    const role = user.role.toLowerCase();
     const isHtmx = res.get("HX-Request") === "true";
 
-    if (role === "staff") {
-      if (process.env.NODE_ENV === "test") {
-        res.status(403).send("Forbidden");
-      } else {
-        res.redirect("/events");
-      }
-      return;
-    }
-
-    const result = await this.service.getMyRSVPs(userId, session.authenticatedUser?.role ?? "");
+    const result = await this.service.getMyRSVPs(userId, role);
 
     if (result.ok === false) {
       const status = this.mapErrorStatus(result.value);
@@ -602,6 +595,6 @@ class EventController implements IEventController {
 export function CreateEventController(
     service: IEventService,
     logger: ILoggingService,
-): IEventController {
+  ): IEventController {
   return new EventController(service, logger);
 }

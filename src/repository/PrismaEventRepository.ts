@@ -1,3 +1,4 @@
+import { UnknownError } from "../lib/errors.js";
 import type { IEventRepository, UpcomingEventsTimeframe } from "./EventRepository.js";
 import type { IEvent } from "../event.js";
 import type { IUserRepository } from "../auth/UserRepository.js";
@@ -538,6 +539,35 @@ class PrismaEventRepository implements IEventRepository {
       cancelled: summaries.filter((row) => row.status === "Cancelled"),
     };
   }
+  async getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>> {
+    try {
+      const now = new Date();
+
+      const events = await this.prisma.event.findMany({
+        where: {
+          endDatetime: {
+            lt: now,
+          },
+          ...(category
+            ? {
+              category: {
+                equals: category,
+                mode: "insensitive",
+              },
+            }
+            : {}),
+        },
+        orderBy: {
+          startDatetime: "desc",
+        },
+      });
+
+      return Ok(events.map(e => toEvent(e)));
+    } catch {
+      return Err(new UnknownError("Failed to fetch archived events"));
+    }
+  }
+
 }
 
 export function CreatePrismaEventRepository(
