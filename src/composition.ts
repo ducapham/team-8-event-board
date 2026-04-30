@@ -15,7 +15,7 @@ import { createRuntimePrismaEventResources } from "./repository/PrismaEventBoots
 import { CreateAttendeeListService } from "./service/AttendeeListService";
 import { CreateAttendeeListController } from "./controller/AttendeeListController";
 // Feature 13 — Event Comments
-import { CreateInMemoryCommentRepository } from "./repository/InMemoryCommentRepository";
+import { CreatePrismaCommentRepository } from "./repository/PrismaCommentRepository";
 import { CreateCommentService } from "./service/CommentService";
 import { CreateCommentController } from "./controller/CommentController";
 
@@ -30,7 +30,7 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
 
   // Feature 5 lifecycle publish/cancel flows now use Prisma-backed event data.
-  const { eventRepository: prismaEventRepository } = createRuntimePrismaEventResources(authUsers);
+  const { prisma, eventRepository: prismaEventRepository } = createRuntimePrismaEventResources(authUsers);
   const eventService = CreateEventService(prismaEventRepository);
   const eventController = CreateEventController(eventService, resolvedLogger);
 
@@ -41,8 +41,8 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const attendeeListService = CreateAttendeeListService(eventRepository);
   const attendeeListController = CreateAttendeeListController(attendeeListService, resolvedLogger);
 
-  // Feature 13 — Event Comments wiring
-  const commentRepository = CreateInMemoryCommentRepository();
+  // Feature 13 — Event Comments wiring (now Prisma-backed for Sprint 3)
+  const commentRepository = CreatePrismaCommentRepository(prisma);
   const commentService = CreateCommentService(eventRepository, commentRepository, authUsers);
   const commentController = CreateCommentController(commentService, eventRepository, resolvedLogger);
 

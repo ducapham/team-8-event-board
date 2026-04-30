@@ -14,6 +14,7 @@ model User {
   passwordHash String
   attendees    EventAttendee[]
   organized    Event[]         @relation("OrganizerEvents")
+  comments     Comment[]
 }
 
 model Event {
@@ -27,12 +28,13 @@ model Event {
   capacity      Int
   organizerId   String
   startDatetime DateTime
-  endDatetime   DateTime
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @default(now()) @updatedAt
-  status        EventStatus     @default(PUBLISHED)
-  organizer     User            @relation("OrganizerEvents", fields: [organizerId], references: [id])
-  attendees     EventAttendee[]
+  endDatetime  DateTime
+  createdAt    DateTime
+  updatedAt    DateTime
+  status       EventStatus     @default(PUBLISHED)
+  organizer    User            @relation("OrganizerEvents", fields: [organizerId], references: [id])
+  attendees    EventAttendee[]
+  comments     Comment[]
 }
 
 model EventAttendee {
@@ -58,4 +60,17 @@ enum EventStatus {
   PUBLISHED
   DRAFT
   CANCELLED
+}
+
+// Feature 13 — Event Comments
+model Comment {
+  id        String   @id @default(cuid())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId   Int
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([eventId, createdAt])
 }
