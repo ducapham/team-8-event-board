@@ -551,8 +551,7 @@ class PrismaEventRepository implements IEventRepository {
           ...(category
             ? {
               category: {
-                equals: category,
-                mode: "insensitive",
+                equals: toStoredCategory(category),
               },
             }
             : {}),
