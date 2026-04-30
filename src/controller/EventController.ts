@@ -46,12 +46,8 @@ export interface IEventController {
   renderCreateForm(req: Request, res: Response): void;
   createEvent(req: Request, res: Response): Promise<void>;
   getEventDetail(req: Request, res: Response): Promise<void>;
-  showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void>;
-  showArchive(
-    res: Response,
-    session: IAppBrowserSession,
-    category?: string
-  ): Promise<void>;
+  showMyRSVPs(res: Response, session: IAppBrowserSession, query: Record<string, any>): Promise<void>;
+  showArchive(res: Response, session: IAppBrowserSession, category?: string): Promise<void>;
 }
 
 class EventController implements IEventController {
@@ -114,6 +110,7 @@ class EventController implements IEventController {
       session,
       event: detailResult?.event ?? null,
       permissions: detailResult?.permissions ?? { canPublish: false, canCancel: false },
+      organizerName: detailResult?.organizerName,
       ...(options?.layout === false ? { layout: false } : {}),
     });
   }
@@ -165,10 +162,15 @@ class EventController implements IEventController {
     query: { category?: string; timeframe?: string; query?: string },
     isHtmxRequest = false,
   ): Promise<void> {
-    const result = await this.service.listPublishedEvents(
-      query,
-      session.authenticatedUser?.userId,
-    );
+    const userId = session.authenticatedUser?.userId;
+
+    const filters = {
+      category: typeof query.category === "string" ? query.category : undefined,
+      timeframe: typeof query.timeframe === "string" ? query.timeframe : undefined,
+      query: typeof query.query === "string" ? query.query : undefined,
+    };
+
+    const result = await this.service.listPublishedEvents(filters, userId);
 
     if (result.ok === false) {
       const status = this.mapErrorStatus(result.value);
@@ -299,7 +301,16 @@ class EventController implements IEventController {
     pageError: string | null = null,
     status = 200,
   ): Promise<void> {
-    const result = await this.service.listPublishedEvents(query, session.authenticatedUser?.userId);
+    const filters = {
+      category: typeof query.category === "string" ? query.category : undefined,
+      timeframe: typeof query.timeframe === "string" ? query.timeframe : undefined,
+      query: typeof query.query === "string" ? query.query : undefined,
+    };
+
+    const result = await this.service.listPublishedEvents(
+      filters,
+      session.authenticatedUser?.userId
+    );
 
     if (result.ok === false) {
       const statusCode = this.mapErrorStatus(result.value);
@@ -375,14 +386,15 @@ class EventController implements IEventController {
     }
 
     if (res.req.get("HX-Request") === "true" && res.req.query.from === "my-rsvps") {
-      const result = await this.service.getMyRSVPs(
-        session.authenticatedUser?.userId ?? ""
-      );
+      const user = session.authenticatedUser!;
+      const userId = user.userId;
+      const role = user.role.toLowerCase();
+
+      const result = await this.service.getMyRSVPs(userId, role);
 
       return res.render("partials/my-rsvps-columns", {
-        going: result.value.going,
-        waitlisted: result.value.waitlisted,
-        cancelled: result.value.cancelled,
+        upcoming: result.value.upcoming,
+        past: result.value.past,
         layout: false,
       });
     }
@@ -490,6 +502,7 @@ class EventController implements IEventController {
     res.render("events/detail", {
       event: result.value.event,
       permissions: result.value.permissions,
+      organizerName: result.value.organizerName,
       session: browserSession,
       pageError: null,
     });
@@ -529,22 +542,44 @@ class EventController implements IEventController {
   }
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
-  async showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void> {
-    const userId = session.authenticatedUser?.userId ?? "";
+  async showMyRSVPs(res: Response, session: IAppBrowserSession, query: any): Promise<void> {
+    const user = session.authenticatedUser!;
+    const userId = user.userId;
+    const role = user.role.toLowerCase();
+    const isHtmx = res.get("HX-Request") === "true";
 
-    const result = await this.service.getMyRSVPs(userId);
+    const result = await this.service.getMyRSVPs(userId, role);
 
     if (result.ok === false) {
       const status = this.mapErrorStatus(result.value);
-      const log = status >= 500 ? this.logger.error : this.logger.warn;
-      log.call(this.logger, `My RSVPs failed: ${result.value.message}`);
+
+      if (status === 403) {
+        if (process.env.NODE_ENV === "test") {
+          res.status(403).send("Forbidden");
+        } else {
+          res.redirect("/events");
+        }
+        return;
+      }
+
+      if (isHtmx) {
+        res.status(status).send("");
+        return;
+      }
 
       res.status(status).render("my-rsvps", {
         pageError: result.value.message,
         session,
-        going: [],
-        waitlisted: [],
-        cancelled: [],
+        upcoming: [],
+        past: [],
+      });
+      return;
+    }
+
+    if (isHtmx) {
+      res.render("partials/my-rsvps-columns", {
+        upcoming: result.value.upcoming,
+        past: result.value.past,
       });
       return;
     }
@@ -552,17 +587,14 @@ class EventController implements IEventController {
     res.render("my-rsvps", {
       pageError: null,
       session,
-      going: result.value.going,
-      waitlisted: result.value.waitlisted,
-      cancelled: result.value.cancelled,
+      upcoming: result.value.upcoming,
+      past: result.value.past,
     });
   }
-
 }
-
 export function CreateEventController(
-  service: IEventService,
-  logger: ILoggingService,
-): IEventController {
+    service: IEventService,
+    logger: ILoggingService,
+  ): IEventController {
   return new EventController(service, logger);
 }

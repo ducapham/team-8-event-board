@@ -10,6 +10,7 @@ import { CreateInMemoryEventRepository } from "../src/repository/InMemoryEventRe
 import type { IApp } from "../src/contracts";
 import { CreateLoggingService } from "../src/service/LoggingService";
 import type { ILoggingService } from "../src/service/LoggingService";
+import { createTestPrismaEventResources } from "./helpers/createTestPrismaEventResources";
 // Feature 12 — Attendee List
 import { CreateAttendeeListService } from "../src/service/AttendeeListService";
 import { CreateAttendeeListController } from "../src/controller/AttendeeListController";
@@ -20,7 +21,20 @@ import { CreateCommentController } from "../src/controller/CommentController";
 import { IEventRepository } from "../src/repository/EventRepository";
 import { ICommentRepository } from "../src/repository/CommentRepository";
 
-export function createExposedApp(logger?: ILoggingService): { app: IApp, eventRepository: IEventRepository, commentRepository:ICommentRepository } {
+const lifecycleTestCleanups: Array<() => Promise<void>> = [];
+
+if (typeof afterEach === "function") {
+  afterEach(async () => {
+    while (lifecycleTestCleanups.length > 0) {
+      const cleanup = lifecycleTestCleanups.pop();
+      if (cleanup) {
+        await cleanup();
+      }
+    }
+  });
+}
+
+export function createExposedApp(logger?: ILoggingService): { app: IApp, eventRepository: IEventRepository, commentRepository: ICommentRepository } {
   const resolvedLogger = logger ?? CreateLoggingService();
 
   // Authentication & authorization wiring
@@ -40,16 +54,70 @@ export function createExposedApp(logger?: ILoggingService): { app: IApp, eventRe
   const attendeeListController = CreateAttendeeListController(attendeeListService, resolvedLogger);
 
   // Feature 13 — Event Comments wiring
+  // No Prisma in this helper — use the in-memory comment repo to match the
+  // in-memory event repo above. Tests that need a real DB use the Prisma
+  // variants below.
   const commentRepository = CreateInMemoryCommentRepository();
   const commentService = CreateCommentService(eventRepository, commentRepository, authUsers);
   const commentController = CreateCommentController(commentService, eventRepository, resolvedLogger);
 
-  return {app: CreateApp(
-    authController,
-    eventController,
-    resolvedLogger,
-    attendeeListController,
+  return {
+    app: CreateApp(
+      authController,
+      eventController,
+      resolvedLogger,
+      attendeeListController,
+      eventRepository,
+      commentController,
+    ),
     eventRepository,
-    commentController,
-  ), eventRepository, commentRepository};
+    commentRepository,
+  };
+}
+
+export function createLifecyclePrismaExposedApp(
+  logger?: ILoggingService,
+): { app: IApp; eventRepository: IEventRepository } {
+  const resolvedLogger = logger ?? CreateLoggingService();
+
+  const authUsers = CreateInMemoryUserRepository();
+  const passwordHasher = CreatePasswordHasher();
+  const authService = CreateAuthService(authUsers, passwordHasher);
+  const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
+  const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
+
+  const { eventRepository, cleanup } = createTestPrismaEventResources(authUsers);
+  lifecycleTestCleanups.push(cleanup);
+
+  const eventService = CreateEventService(eventRepository);
+  const eventController = CreateEventController(eventService, resolvedLogger);
+
+  return {
+    app: CreateApp(authController, eventController, resolvedLogger),
+    eventRepository,
+  };
+}
+
+export function createFilterPrismaExposedApp(
+  logger?: ILoggingService,
+  seedNow?: Date,
+): { app: IApp; eventRepository: IEventRepository } {
+  const resolvedLogger = logger ?? CreateLoggingService();
+
+  const authUsers = CreateInMemoryUserRepository();
+  const passwordHasher = CreatePasswordHasher();
+  const authService = CreateAuthService(authUsers, passwordHasher);
+  const adminUserService = CreateAdminUserService(authUsers, passwordHasher);
+  const authController = CreateAuthController(authService, adminUserService, resolvedLogger);
+
+  const { eventRepository, cleanup } = createTestPrismaEventResources(authUsers, seedNow);
+  lifecycleTestCleanups.push(cleanup);
+
+  const eventService = CreateEventService(eventRepository);
+  const eventController = CreateEventController(eventService, resolvedLogger);
+
+  return {
+    app: CreateApp(authController, eventController, resolvedLogger),
+    eventRepository,
+  };
 }

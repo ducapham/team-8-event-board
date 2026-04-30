@@ -65,10 +65,11 @@ export interface EventPermissions {
 export interface EventDetailResult {
   event: IEvent;
   permissions: EventPermissions;
+  organizerName: string;
 }
 
 export interface IEventService {
-  getMyRSVPs(userId: string): Promise<Result<any, EventError>>;
+  getMyRSVPs(userId: string, role: string): Promise<Result<any, EventError>>;
   Toggle(eventId: number, userId: string): Promise<Result<string, EventError>>;
   Search(query: string, viewerId?: string): Promise<Result<IEvent[], EventError>>;
   createEvent(input: CreateEventInput, organizerId: string): Promise<Result<IEvent, CreateEventError>>;
@@ -382,23 +383,37 @@ class EventService implements IEventService {
     now: Date = new Date(),
   ): Promise<Result<EventDetailResult, EventError>> {
     const eventLookup = await this.repo.findById(Number(eventId));
+  
     if (eventLookup.ok === false) {
       return Err(new UnexpectedDependencyError(eventLookup.value.message));
     }
-
+  
     if (!eventLookup.value) {
       return Err(new EventNotFoundError("Event not found."));
     }
-
-    const event = resolveEventStatus(eventLookup.value, now);
-    const visibleToAll = event.status === "published" || event.status === "past";
-    if (!visibleToAll && !isAdmin(actor) && !isOwner(event, actor)) {
+  
+    const foundEvent = eventLookup.value;
+    const resolvedEvent = resolveEventStatus(foundEvent, now);
+  
+    const visibleToAll =
+      resolvedEvent.status === "published" || resolvedEvent.status === "past";
+  
+    if (!visibleToAll && !isAdmin(actor) && !isOwner(resolvedEvent, actor)) {
       return Err(new ForbiddenError("You do not have access to this event."));
     }
-
+  
+    const organizerResult = await this.repo.findOrganizerNameById(
+      resolvedEvent.organizerId,
+    );
+  
+    if (organizerResult.ok === false) {
+      return Err(organizerResult.value);
+    }
+  
     return Ok({
-      event,
-      permissions: buildPermissions(event, actor),
+      event: resolvedEvent,
+      permissions: buildPermissions(resolvedEvent, actor),
+      organizerName: organizerResult.value,
     });
   }
 
@@ -436,9 +451,17 @@ class EventService implements IEventService {
       return Err(new UnexpectedDependencyError(saveResult.value.message));
     }
 
+    const resolvedEvent = resolveEventStatus(saveResult.value, now);
+    const organizerResult = await this.repo.findOrganizerNameById(resolvedEvent.organizerId);
+    
+    if (organizerResult.ok === false) {
+      return Err(organizerResult.value);
+    }
+    
     return Ok({
-      event: resolveEventStatus(saveResult.value, now),
-      permissions: buildPermissions(saveResult.value, actor),
+      event: resolvedEvent,
+      permissions: buildPermissions(resolvedEvent, actor),
+      organizerName: organizerResult.value,
     });
   }
 
@@ -476,49 +499,68 @@ class EventService implements IEventService {
       return Err(new UnexpectedDependencyError(saveResult.value.message));
     }
 
+    const resolvedEvent = resolveEventStatus(saveResult.value, now);
+    const organizerResult = await this.repo.findOrganizerNameById(resolvedEvent.organizerId);
+    
+    if (organizerResult.ok === false) {
+      return Err(organizerResult.value);
+    }
+    
     return Ok({
-      event: resolveEventStatus(saveResult.value, now),
-      permissions: buildPermissions(saveResult.value, actor),
+      event: resolvedEvent,
+      permissions: buildPermissions(resolvedEvent, actor),
+      organizerName: organizerResult.value,
     });
   }
 
   // Feature 11 — Past Event Archiving (Giorgi)
   async getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>> {
-    const result = await this.repo.listEvents();
-
-    if (result.ok === false) {
-      return result;
-    }
-
-    const now = new Date();
-
-    const pastEvents = result.value
-      .map(e => resolveEventStatus(e, now))
-      .filter(e =>
-        e.status === "past" &&
-        (!category || e.category.toLowerCase() === category.toLowerCase())
-      )
-      .sort((a, b) => b.startDatetime.getTime() - a.startDatetime.getTime());
-
-    return Ok(pastEvents);
+    return this.repo.getArchivedEvents(category);
   }
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
-  async getMyRSVPs(userId: string): Promise<Result<any, EventError>> {
+  async getMyRSVPs(userId: string, role: string): Promise<Result<any, EventError>> {
     try {
+      if (role?.toLowerCase() !== "admin") {
+        const isOrganizer = await this.repo.isUserOrganizer(userId);
+
+        if (isOrganizer) {
+          return Err(new ForbiddenError("Organizers cannot access RSVP dashboard"));
+        }
+      }
+
+
       const data = await this.repo.getRSVPsByUser(userId);
 
-      return Ok({
-        going: data.filter((d: any) => d.status === "Registered"),
-        waitlisted: data.filter((d: any) => d.status === "Waitlisted"),
-        cancelled: data.filter((d: any) => d.status === "Cancelled"),
-      });
+      const now = new Date();
+
+      const upcoming = data
+        .filter((d: any) =>
+          (d.status === "Registered" || d.status === "Waitlisted") &&
+          new Date(d.event.endDatetime) > now
+        )
+        .sort((a: any, b: any) =>
+          new Date(a.event.startDatetime).getTime() -
+          new Date(b.event.startDatetime).getTime()
+        );
+
+      const past = data
+        .filter((d: any) =>
+          new Date(d.event.endDatetime) <= now ||
+          d.status === "Cancelled"
+        )
+        .sort((a: any, b: any) =>
+          new Date(b.event.startDatetime).getTime() -
+          new Date(a.event.startDatetime).getTime()
+        );
+
+      return Ok({ upcoming, past });
+
     } catch {
       return Err(new UnknownError("Failed to fetch RSVPs"));
     }
   }
 }
-
 export function CreateEventService(repo: IEventRepository): IEventService {
   return new EventService(repo);
 }

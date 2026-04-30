@@ -368,7 +368,10 @@ class ExpressApp implements IApp {
         }
 
         const browserSession = recordPageView(sessionStore(req));
-        await this.eventController.showMyRSVPs(res, browserSession);
+        await this.eventController.showMyRSVPs(res, browserSession, {
+          ...req.query,
+          ...req.headers
+        });
       }),
     );
 
@@ -419,7 +422,7 @@ class ExpressApp implements IApp {
         }
 
         const isHtmx = this.isHtmxRequest(req);
-        await this.eventController.toggleFromForm(res, id, browserSession, !isHtmx);
+        await this.eventController.toggleFromForm(res, id, browserSession, !isHtmx)
       }),
     );
 
@@ -453,8 +456,9 @@ class ExpressApp implements IApp {
           }
           const eventResult = await this.eventRepo!.findById(eventId);
           const eventTitle = eventResult.ok && eventResult.value ? eventResult.value.title : "Event";
+          const isHtmx = this.isHtmxRequest(req);
           await this.attendeeListController!.showAttendees(
-            res, eventId, currentUser.userId, currentUser.role, eventTitle, recordPageView(sessionStore(req)),
+            res, eventId, currentUser.userId, currentUser.role, eventTitle, recordPageView(sessionStore(req)), isHtmx,
           );
         }),
       );

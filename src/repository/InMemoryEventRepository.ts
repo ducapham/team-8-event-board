@@ -1,4 +1,4 @@
-import type { IEventRepository } from "./EventRepository.js";
+import type { IEventRepository, UpcomingEventsTimeframe } from "./EventRepository.js";
 import type { IEvent } from "../event.js";
 import type { IUserRepository } from "../auth/UserRepository.js";
 import { Err, Ok, type Result } from "../lib/result.js";
@@ -33,7 +33,14 @@ function nextWeekday(value: Date, weekday: number): Date {
   return addDays(base, daysAhead);
 }
 
-function buildDemoEvents(now: Date = new Date()): IEvent[] {
+function startOfWeek(value: Date): Date {
+  const nextValue = startOfDay(value);
+  const daysSinceMonday = (nextValue.getDay() + 6) % 7;
+  nextValue.setDate(nextValue.getDate() - daysSinceMonday);
+  return nextValue;
+}
+
+export function createDemoEvents(now: Date = new Date()): IEvent[] {
   const today = startOfDay(now);
   const tomorrowStart = atTime(addDays(today, 1), 18, 0);
   const tomorrowEnd = atTime(addDays(today, 1), 20, 0);
@@ -195,6 +202,47 @@ class InMemoryEventRepository implements IEventRepository {
     }
   }
 
+  async listUpcomingPublishedEvents(
+    now: Date,
+    category?: string,
+    timeframe: UpcomingEventsTimeframe = "all-upcoming",
+  ): Promise<Result<IEvent[], EventError>> {
+    try {
+      const normalizedCategory = category?.trim().toLowerCase();
+      const nextWeek = addDays(startOfWeek(now), 7);
+      const weekendStart = addDays(startOfWeek(now), 5);
+      const events = this.events
+        .filter((event) => event.status === "published")
+        .filter((event) => event.startDatetime.getTime() >= now.getTime())
+        .filter((event) => {
+          if (!normalizedCategory) {
+            return true;
+          }
+
+          return event.category.toLowerCase() === normalizedCategory;
+        })
+        .filter((event) => {
+          if (timeframe === "this-week") {
+            return event.startDatetime.getTime() < nextWeek.getTime();
+          }
+
+          if (timeframe === "this-weekend") {
+            return (
+              event.startDatetime.getTime() >= weekendStart.getTime() &&
+              event.startDatetime.getTime() < nextWeek.getTime()
+            );
+          }
+
+          return true;
+        })
+        .sort((left, right) => left.startDatetime.getTime() - right.startDatetime.getTime());
+
+      return Ok(events);
+    } catch {
+      return Err(new UnexpectedDependencyError("Unable to list upcoming published events."));
+    }
+  }
+
   async findById(id: number): Promise<Result<IEvent | null, EventError>> {
     try {
       const event = this.events.find((candidate) => candidate.id === id) ?? null;
@@ -317,6 +365,19 @@ class InMemoryEventRepository implements IEventRepository {
     return event;
   }
 
+  async findOrganizerNameById(userId: string): Promise<Result<string, EventError>> {
+    const userResult = await this.userRepo.findById(userId);
+  
+    if (!userResult.ok) {
+      return Err(new UnexpectedDependencyError("Unable to read organizer."));
+    }
+  
+    if (!userResult.value) {
+      return Err(new UserNotFoundError(`User with ID ${userId} not found`));
+    }
+  
+    return Ok(userResult.value.displayName);
+  }
   // Feature 11 — Attendee List (Giorgi)
   async getGroupedAttendees(eventId: number) {
     const filtered = this.summary.filter((s) => s.Event.id === eventId);
@@ -329,20 +390,36 @@ class InMemoryEventRepository implements IEventRepository {
   }
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
-async getRSVPsByUser(userId: string) {
-  return this.summary
-    .filter((s) => s.User.id === userId)
-    .map((s) => ({
-      event: s.Event,
-      status: s.status,
-      date: s.date,
-      time: s.time,
-    }));
+  async getRSVPsByUser(userId: string) {
+    return this.summary
+      .filter((s) => s.User.id === userId)
+      .map((s) => ({
+        event: s.Event,
+        status: s.status,
+        date: s.date,
+        time: s.time,
+      }));
+  }
 
-}
+  // Feature 11 — Past Event Archiving (Giorgi)
+  async getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>> {
+    const now = new Date();
 
+    const events = this.events
+      .filter((e) => e.endDatetime < now)
+      .filter((e) =>
+        !category || e.category.toLowerCase() === category.toLowerCase()
+      )
+      .sort((a, b) => b.startDatetime.getTime() - a.startDatetime.getTime());
+
+    return Ok(events);
+    }
+
+  async isUserOrganizer(userId: string): Promise<boolean> {
+    return this.events.some((e) => e.organizerId === userId);
+  }
 }
 
 export function CreateInMemoryEventRepository(userRepo: IUserRepository): IEventRepository {
-  return new InMemoryEventRepository(buildDemoEvents(), userRepo, []);
+  return new InMemoryEventRepository(createDemoEvents(), userRepo, []);
 }

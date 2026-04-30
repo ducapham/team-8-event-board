@@ -2,8 +2,15 @@ import type { IEvent } from "../event.js";
 import type { Result } from "../lib/result.js";
 import type { EventError } from "../lib/errors.js";
 
+export type UpcomingEventsTimeframe = "all-upcoming" | "this-week" | "this-weekend";
+
 export interface IEventRepository {
   listEvents(): Promise<Result<IEvent[], EventError>>;
+  listUpcomingPublishedEvents(
+    now: Date,
+    category?: string,
+    timeframe?: UpcomingEventsTimeframe,
+  ): Promise<Result<IEvent[], EventError>>;
   findById(id: number): Promise<Result<IEvent | null, EventError>>;
   save(event: IEvent): Promise<Result<IEvent, EventError>>;
 
@@ -15,10 +22,15 @@ export interface IEventRepository {
 
   // Feature 1 — Event Creation (Haruki)
   create(event: IEvent): Promise<IEvent>;
+  findOrganizerNameById(userId: string): Promise<Result<string, EventError>>;
   
   // Feature 7 — My RSVPs Dashboard (Giorgi)
   getRSVPsByUser(userId: string): Promise<any>;
 
+  // Feature 11 — Past Event Archiving (Giorgi)
+  getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>>;
+
   getGroupedAttendees(eventId: number): Promise<any>;
+  isUserOrganizer(userId: string): Promise<boolean>;
 }
 
