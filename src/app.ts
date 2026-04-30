@@ -368,7 +368,10 @@ class ExpressApp implements IApp {
         }
 
         const browserSession = recordPageView(sessionStore(req));
-        await this.eventController.showMyRSVPs(res, browserSession);
+        await this.eventController.showMyRSVPs(res, browserSession, {
+          ...req.query,
+          ...req.headers
+        });
       }),
     );
 

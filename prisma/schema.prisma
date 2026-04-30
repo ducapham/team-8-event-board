@@ -18,15 +18,15 @@ model User {
 }
 
 model Event {
-  id           Int             @id @default(autoincrement())
-  title        String
-  description  String
-  location     String
-  category     String
-  date         DateTime
-  time         String
-  capacity     Int
-  organizerId  String
+  id            Int             @id @default(autoincrement())
+  title         String
+  description   String
+  location      String
+  category      String
+  date          DateTime
+  time          String
+  capacity      Int
+  organizerId   String
   startDatetime DateTime
   endDatetime  DateTime
   createdAt    DateTime
@@ -38,14 +38,15 @@ model Event {
 }
 
 model EventAttendee {
-  id        Int                    @id @default(autoincrement())
-  user      User                   @relation(fields: [userId], references: [id])
+  id        Int                   @id @default(autoincrement())
+  user      User                  @relation(fields: [userId], references: [id])
   userId    String
-  event     Event                  @relation(fields: [eventId], references: [id])
+  event     Event                 @relation(fields: [eventId], references: [id])
   eventId   Int
-  status    EventAttendanceStatus  @default(REGISTERED)
-  createdAt DateTime               @default(now())
-  updatedAt DateTime               @updatedAt
+  status    EventAttendanceStatus @default(REGISTERED)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @default(now()) @updatedAt
+
   @@unique([userId, eventId])
 }
 
@@ -55,7 +56,7 @@ enum EventAttendanceStatus {
   CANCELLED
 }
 
-enum EventStatus{
+enum EventStatus {
   PUBLISHED
   DRAFT
   CANCELLED
