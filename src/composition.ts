@@ -6,7 +6,6 @@ import { CreatePasswordHasher } from "./auth/PasswordHasher";
 import { CreateApp } from "./app";
 import { CreateEventController } from "./controller/EventController";
 import { CreateEventService } from "./service/EventService";
-import { CreateInMemoryEventRepository } from "./repository/InMemoryEventRepository";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
@@ -35,23 +34,29 @@ export function createComposedApp(logger?: ILoggingService): IApp {
   const eventController = CreateEventController(eventService, resolvedLogger);
 
   // Other repository consumers stay on the existing in-memory path for now.
-  const eventRepository = CreateInMemoryEventRepository(authUsers);
+  // const eventRepository = CreateInMemoryEventRepository(authUsers);
+  // const prismaclient = new PrismaClient({
+  //           adapter: new PrismaBetterSqlite3({
+  //             url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
+  //           }),
+  //         })
+  // const eventRepository = CreatePrismaEventRepository(prismaclient, authUsers)
 
   // Feature 12 — Attendee List
-  const attendeeListService = CreateAttendeeListService(eventRepository);
+  const attendeeListService = CreateAttendeeListService(prismaEventRepository);
   const attendeeListController = CreateAttendeeListController(attendeeListService, resolvedLogger);
 
   // Feature 13 — Event Comments wiring (now Prisma-backed for Sprint 3)
   const commentRepository = CreatePrismaCommentRepository(prisma);
-  const commentService = CreateCommentService(eventRepository, commentRepository, authUsers);
-  const commentController = CreateCommentController(commentService, eventRepository, resolvedLogger);
+  const commentService = CreateCommentService(prismaEventRepository, commentRepository, authUsers);
+  const commentController = CreateCommentController(commentService, prismaEventRepository, resolvedLogger);
 
   return CreateApp(
     authController,
     eventController,
     resolvedLogger,
     attendeeListController,
-    eventRepository,
+    prismaEventRepository,
     commentController,
   );
 }

@@ -34,7 +34,7 @@ if (typeof afterEach === "function") {
   });
 }
 
-export function createExposedApp(logger?: ILoggingService): { app: IApp, eventRepository: IEventRepository, commentRepository:ICommentRepository } {
+export function createExposedApp(logger?: ILoggingService): { app: IApp, eventRepository: IEventRepository, commentRepository: ICommentRepository } {
   const resolvedLogger = logger ?? CreateLoggingService();
 
   // Authentication & authorization wiring
@@ -54,18 +54,25 @@ export function createExposedApp(logger?: ILoggingService): { app: IApp, eventRe
   const attendeeListController = CreateAttendeeListController(attendeeListService, resolvedLogger);
 
   // Feature 13 — Event Comments wiring
+  // No Prisma in this helper — use the in-memory comment repo to match the
+  // in-memory event repo above. Tests that need a real DB use the Prisma
+  // variants below.
   const commentRepository = CreateInMemoryCommentRepository();
   const commentService = CreateCommentService(eventRepository, commentRepository, authUsers);
   const commentController = CreateCommentController(commentService, eventRepository, resolvedLogger);
 
-  return {app: CreateApp(
-    authController,
-    eventController,
-    resolvedLogger,
-    attendeeListController,
+  return {
+    app: CreateApp(
+      authController,
+      eventController,
+      resolvedLogger,
+      attendeeListController,
+      eventRepository,
+      commentController,
+    ),
     eventRepository,
-    commentController,
-  ), eventRepository, commentRepository};
+    commentRepository,
+  };
 }
 
 export function createLifecyclePrismaExposedApp(
