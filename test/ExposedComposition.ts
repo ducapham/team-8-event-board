@@ -10,7 +10,7 @@ import { CreateInMemoryEventRepository } from "../src/repository/InMemoryEventRe
 import type { IApp } from "../src/contracts";
 import { CreateLoggingService } from "../src/service/LoggingService";
 import type { ILoggingService } from "../src/service/LoggingService";
-import { createTestPrismaEventResources } from "../src/repository/PrismaEventBootstrap";
+import { createTestPrismaEventResources } from "./helpers/createTestPrismaEventResources";
 // Feature 12 — Attendee List
 import { CreateAttendeeListService } from "../src/service/AttendeeListService";
 import { CreateAttendeeListController } from "../src/controller/AttendeeListController";
