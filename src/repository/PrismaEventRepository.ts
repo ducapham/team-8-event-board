@@ -469,6 +469,15 @@ class PrismaEventRepository implements IEventRepository {
     return rows.map(toEvent);
   }
 
+  async isUserOrganizer(userId: string): Promise<boolean> {
+    const event = await this.prisma.event.findFirst({
+      where: { organizerId: userId },
+    });
+
+    return event !== null;
+  }
+
+
   async getRSVPsByUser(userId: string): Promise<PrismaAttendeeSummary[]> {
     const rows = await this.prisma.eventAttendee.findMany({
       where: { userId },
