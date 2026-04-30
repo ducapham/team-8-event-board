@@ -46,12 +46,8 @@ export interface IEventController {
   renderCreateForm(req: Request, res: Response): void;
   createEvent(req: Request, res: Response): Promise<void>;
   getEventDetail(req: Request, res: Response): Promise<void>;
-  showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void>;
-  showArchive(
-    res: Response,
-    session: IAppBrowserSession,
-    category?: string
-  ): Promise<void>;
+  showMyRSVPs(res: Response, session: IAppBrowserSession, query: Record<string, any>): Promise<void>;
+  showArchive(res: Response, session: IAppBrowserSession, category?: string): Promise<void>;
 }
 
 class EventController implements IEventController {
@@ -166,10 +162,15 @@ class EventController implements IEventController {
     query: { category?: string; timeframe?: string; query?: string },
     isHtmxRequest = false,
   ): Promise<void> {
-    const result = await this.service.listPublishedEvents(
-      query,
-      session.authenticatedUser?.userId,
-    );
+    const userId = session.authenticatedUser?.userId;
+
+    const filters = {
+      category: typeof query.category === "string" ? query.category : undefined,
+      timeframe: typeof query.timeframe === "string" ? query.timeframe : undefined,
+      query: typeof query.query === "string" ? query.query : undefined,
+    };
+
+    const result = await this.service.listPublishedEvents(filters, userId);
 
     if (result.ok === false) {
       const status = this.mapErrorStatus(result.value);
@@ -300,7 +301,16 @@ class EventController implements IEventController {
     pageError: string | null = null,
     status = 200,
   ): Promise<void> {
-    const result = await this.service.listPublishedEvents(query, session.authenticatedUser?.userId);
+    const filters = {
+      category: typeof query.category === "string" ? query.category : undefined,
+      timeframe: typeof query.timeframe === "string" ? query.timeframe : undefined,
+      query: typeof query.query === "string" ? query.query : undefined,
+    };
+
+    const result = await this.service.listPublishedEvents(
+      filters,
+      session.authenticatedUser?.userId
+    );
 
     if (result.ok === false) {
       const statusCode = this.mapErrorStatus(result.value);
@@ -530,9 +540,10 @@ class EventController implements IEventController {
   }
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
-  async showMyRSVPs(res: Response, session: IAppBrowserSession): Promise<void> {
+  async showMyRSVPs(res: Response, session: IAppBrowserSession, query: any): Promise<void> {
     const userId = session.authenticatedUser?.userId ?? "";
     const role = session.authenticatedUser?.role;
+    const isHtmx = res.get("HX-Request") === "true";
 
     if (role === "staff") {
       if (process.env.NODE_ENV === "test") {
@@ -557,11 +568,24 @@ class EventController implements IEventController {
         return;
       }
 
+      if (isHtmx) {
+        res.status(status).send("");
+        return;
+      }
+
       res.status(status).render("my-rsvps", {
         pageError: result.value.message,
         session,
         upcoming: [],
         past: [],
+      });
+      return;
+    }
+
+    if (isHtmx) {
+      res.render("partials/my-rsvps-columns", {
+        upcoming: result.value.upcoming,
+        past: result.value.past,
       });
       return;
     }
@@ -574,7 +598,6 @@ class EventController implements IEventController {
     });
   }
 }
-
 export function CreateEventController(
     service: IEventService,
     logger: ILoggingService,
