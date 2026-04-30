@@ -13,7 +13,7 @@
 
 import request from "supertest";
 import type { Express } from "express";
-import { createComposedApp } from "../../src/composition";
+import { createExposedApp } from "../ExposedComposition";
 import type { ILoggingService } from "../../src/service/LoggingService";
 
 function makeSilentLogger(): ILoggingService {
@@ -23,6 +23,14 @@ function makeSilentLogger(): ILoggingService {
     error: jest.fn(),
     debug: jest.fn(),
   } as unknown as ILoggingService;
+}
+
+// Use the team's in-memory test composition so seed comments are available
+// and tests are hermetic. Production composition is now Prisma-backed; the
+// Prisma path is exercised when the real app runs.
+function getExpressApp(logger?: ILoggingService): Express {
+  const { app } = createExposedApp(logger);
+  return (app as unknown as { getExpressApp(): Express }).getExpressApp();
 }
 
 // Helper: log in as a demo user and return an authenticated supertest agent.
@@ -47,7 +55,7 @@ describe("Feature 13 — Event Comments HTTP contracts", () => {
 
   beforeEach(() => {
     // A fresh composition per test => fresh in-memory seed data.
-    app = createComposedApp(makeSilentLogger()).getExpressApp();
+    app = getExpressApp(makeSilentLogger());
   });
 
   // ────────────────────────────────────────────────────────────────

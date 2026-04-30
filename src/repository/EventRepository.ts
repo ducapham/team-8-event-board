@@ -31,5 +31,6 @@ export interface IEventRepository {
   getArchivedEvents(category?: string): Promise<Result<IEvent[], EventError>>;
 
   getGroupedAttendees(eventId: number): Promise<any>;
+  isUserOrganizer(userId: string): Promise<boolean>;
 }
 
