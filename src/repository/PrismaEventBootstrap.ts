@@ -70,8 +70,23 @@ function ensureSchema(database: Database.Database): void {
       CONSTRAINT "EventAttendee_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS "Comment" (
+      "id"        TEXT     NOT NULL PRIMARY KEY,
+      "eventId"   INTEGER  NOT NULL,
+      "userId"    TEXT     NOT NULL,
+      "content"   TEXT     NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Comment_eventId_fkey"
+        FOREIGN KEY ("eventId") REFERENCES "Event" ("id")
+        ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "Comment_userId_fkey"
+        FOREIGN KEY ("userId") REFERENCES "User" ("id")
+        ON DELETE RESTRICT ON UPDATE CASCADE
+    );
+
     CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
     CREATE UNIQUE INDEX IF NOT EXISTS "EventAttendee_userId_eventId_key" ON "EventAttendee"("userId", "eventId");
+    CREATE INDEX IF NOT EXISTS "Comment_eventId_createdAt_idx" ON "Comment"("eventId", "createdAt");
   `);
 
   const eventColumns = new Set(
