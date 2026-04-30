@@ -1,5 +1,5 @@
 import { CreateInMemoryUserRepository } from "../../src/auth/InMemoryUserRepository";
-import { createTestPrismaEventResources } from "../../src/repository/PrismaEventBootstrap";
+import { createTestPrismaEventResources } from "../helpers/createTestPrismaEventResources";
 import type { IEventRepository } from "../../src/repository/EventRepository";
 
 const fixedNow = new Date("2026-04-20T09:00:00");

@@ -9,7 +9,7 @@ import { CreateEventService } from "./service/EventService";
 import type { IApp } from "./contracts";
 import { CreateLoggingService } from "./service/LoggingService";
 import type { ILoggingService } from "./service/LoggingService";
-import { createRuntimePrismaEventResources } from "./repository/PrismaEventBootstrap";
+import { createRuntimePrismaEventResources } from "./repository/createRuntimePrismaEventResources";
 // Feature 12 — Attendee List
 import { CreateAttendeeListService } from "./service/AttendeeListService";
 import { CreateAttendeeListController } from "./controller/AttendeeListController";

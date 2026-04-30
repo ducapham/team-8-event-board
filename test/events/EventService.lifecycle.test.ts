@@ -1,6 +1,6 @@
 import { CreateEventService, type EventActor } from "../../src/service/EventService";
 import { CreateInMemoryUserRepository } from "../../src/auth/InMemoryUserRepository";
-import { createTestPrismaEventResources } from "../../src/repository/PrismaEventBootstrap";
+import { createTestPrismaEventResources } from "../helpers/createTestPrismaEventResources";
 import type { IEventRepository } from "../../src/repository/EventRepository";
 
 describe("EventService lifecycle transitions", () => {
