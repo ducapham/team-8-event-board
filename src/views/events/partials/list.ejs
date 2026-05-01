@@ -12,9 +12,9 @@
 
   <% const currentUserId = session?.authenticatedUser?.userId; %>
   <% events.forEach((event) => { %>
-    <% const isRegistered  = currentUserId ? event.attendees.some((u) => u.id === currentUserId) : false; %>
-    <% const isWaitlisted  = currentUserId ? event.waitlist.some((u)  => u.id === currentUserId) : false; %>
-    <% const isFull        = event.attendees.length >= event.capacity; %>
+    <% const isRegistered = currentUserId ? event.attendees.some((u) => u.id === currentUserId) : false; %>
+    <% const isWaitlisted = currentUserId ? event.waitlist.some((u) => u.id === currentUserId) : false; %>
+    <% const isFull = event.attendees.length >= event.capacity; %>
 
     <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -41,27 +41,23 @@
         <!-- Status badge + RSVP button -->
         <div class="flex flex-col items-start gap-3 sm:items-end">
 
-          <!-- Attendance status pill -->
+          <!-- Status pill -->
           <div class="text-sm">
             <% if (isRegistered) { %>
               <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-emerald-700 font-medium">
-                <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L8 12.586l7.293-7.293a1 1 0 0 1 1.414 0z" clip-rule="evenodd"/></svg>
-                Registered
+                ✓ Registered
               </span>
             <% } else if (isWaitlisted) { %>
               <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-amber-700 font-medium">
-                <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm1-12a1 1 0 1 0-2 0v4a1 1 0 0 0 .293.707l2.828 2.829a1 1 0 1 0 1.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
-                Waitlisted
+                ⏱ Waitlisted
               </span>
             <% } else if (isFull) { %>
               <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-slate-500 font-medium">
-                <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M13.477 14.89A6 6 0 0 1 5.11 6.524L13.477 14.89zm1.414-1.414L6.524 5.11A6 6 0 0 1 14.89 13.476zM18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0z" clip-rule="evenodd"/></svg>
-                Full
+                ⊘ Full
               </span>
             <% } else { %>
               <span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-blue-600 font-medium">
-                <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm1-11a1 1 0 1 0-2 0v2H7a1 1 0 1 0 0 2h2v2a1 1 0 1 0 2 0v-2h2a1 1 0 1 0 0-2h-2V7z" clip-rule="evenodd"/></svg>
-                Open
+                ⊕ Open
               </span>
             <% } %>
           </div>
@@ -88,7 +84,8 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"/>
                   </svg>
-                  <span x-text="loading ? 'Cancelling…' : 'Cancel RSVP'">Cancel RSVP</span>
+                  <span x-show="!loading">Cancel RSVP</span>
+                  <span x-show="loading">Cancelling…</span>
                 </button>
               </form>
 
@@ -112,7 +109,8 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"/>
                   </svg>
-                  <span x-text="loading ? 'Leaving…' : 'Leave Waitlist'">Leave Waitlist</span>
+                  <span x-show="!loading">Leave Waitlist</span>
+                  <span x-show="loading">Leaving…</span>
                 </button>
               </form>
 
@@ -123,24 +121,26 @@
                 x-data="{ loading: false }"
                 @submit="loading = true"
               >
+                <%# All color classes are decided by EJS here in the static class attribute.    %>
+                <%# Alpine's :class only handles the loading state — no EJS inside it at all.  %>
                 <button
                   type="submit"
                   :disabled="loading"
-                  :class="loading ? 'opacity-60 cursor-wait scale-95' : 'hover:shadow-md active:scale-95 <%= isFull ? 'hover:bg-slate-600' : 'hover:bg-blue-700' %>'"
+                  :class="loading ? 'opacity-60 cursor-wait scale-95' : 'hover:shadow-md active:scale-95'"
                   class="inline-flex items-center gap-2 rounded-2xl px-4 py-2
                          text-white text-sm font-semibold
                          transition-all duration-200 ease-in-out
                          focus:outline-none focus:ring-2 focus:ring-offset-1
-                         <%= isFull ? 'bg-slate-500 ring-1 ring-slate-600 focus:ring-slate-400'
-                                    : 'bg-blue-600 ring-1 ring-blue-700 focus:ring-blue-400' %>"
+                         <%= isFull
+                           ? 'bg-slate-500 ring-1 ring-slate-600 hover:bg-slate-600 focus:ring-slate-400'
+                           : 'bg-blue-600 ring-1 ring-blue-700 hover:bg-blue-700 focus:ring-blue-400' %>"
                 >
                   <svg x-show="loading" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"/>
                   </svg>
-                  <span x-text="loading ? 'Saving…' : '<%= isFull ? 'Join Waitlist' : 'RSVP' %>'">
-                    <%= isFull ? "Join Waitlist" : "RSVP" %>
-                  </span>
+                  <span x-show="!loading"><%= isFull ? 'Join Waitlist' : 'RSVP' %></span>
+                  <span x-show="loading">Saving…</span>
                 </button>
               </form>
             <% } %>
@@ -148,7 +148,7 @@
           <% } %>
 
           
-            href="/events/<%= event.id %>"
+            <a href="/events/<%= event.id %>"
             class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2
                    text-white text-sm font-semibold
                    hover:bg-slate-700 hover:shadow-md active:scale-95
