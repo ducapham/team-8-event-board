@@ -6,17 +6,41 @@
         Browse upcoming published events and narrow the board by category, timeframe, or search term.
       </p>
     </div>
-    <form
-      class="w-full sm:w-[320px]"
-      onsubmit="return false;"
-      x-data="{ query: <%- JSON.stringify(query ?? '') %> }"
-    >
+    <script>
+      document.addEventListener('alpine:init', () => {
+        Alpine.data('eventSearch', () => ({
+          query: '',
+          timer: null,
+          init() {
+            this.query = this.$refs.searchInput.value;
+          },
+          onInput() {
+            clearTimeout(this.timer);
+            this.timer = setTimeout(() => {
+              htmx.ajax('GET', '/events/search?query=' + encodeURIComponent(this.query), {
+                target: '#eventList',
+                swap: 'innerHTML'
+              });
+            }, 250);
+          },
+          onClear() {
+            clearTimeout(this.timer);
+            this.query = '';
+            htmx.ajax('GET', '/events/search?query=', {
+              target: '#eventList',
+              swap: 'innerHTML'
+            });
+          }
+        }));
+      });
+    </script>
+
+    <form class="w-full sm:w-[320px]" onsubmit="return false;" x-data="eventSearch">
       <label for="event-search" class="text-sm font-medium text-slate-700 mb-2 block">
         Search events
       </label>
 
       <div class="relative">
-        <!-- Search icon -->
         <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
@@ -26,17 +50,14 @@
         <input
           x-ref="searchInput"
           x-model="query"
+          @input="onInput()"
           id="event-search"
           name="query"
-          type="search"
+          type="text"
+          value="<%= query ?? '' %>"
           placeholder="Title, location, or description…"
           class="w-full rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-10 py-3 text-slate-900 outline-none
-                 focus:border-blue-400 focus:ring-4 focus:ring-blue-100
-                 transition-shadow duration-150"
-          hx-get="/events/search"
-          hx-trigger="keyup changed delay:250ms"
-          hx-target="#eventList"
-          hx-swap="innerHTML"
+                focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-shadow duration-150"
         />
 
         <button
@@ -48,17 +69,14 @@
           x-transition:leave="transition ease-in duration-100"
           x-transition:leave-start="opacity-100 scale-100"
           x-transition:leave-end="opacity-0 scale-75"
-          @click="
-            query = '';
-            $nextTick(() => htmx.trigger($refs.searchInput, 'keyup'));
-          "
+          @click="onClear()"
           aria-label="Clear search"
           class="absolute right-3 top-1/2 -translate-y-1/2
-                 flex h-5 w-5 items-center justify-center
-                 rounded-full bg-slate-300 text-slate-600 text-xs font-bold
-                 hover:bg-slate-500 hover:text-white
-                 focus:outline-none focus:ring-2 focus:ring-blue-400
-                 transition-colors duration-150"
+                flex h-5 w-5 items-center justify-center
+                rounded-full bg-slate-300 text-slate-600 text-xs font-bold
+                hover:bg-slate-500 hover:text-white
+                focus:outline-none focus:ring-2 focus:ring-blue-400
+                transition-colors duration-150"
         >✕</button>
       </div>
     </form>
