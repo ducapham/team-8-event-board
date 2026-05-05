@@ -1,28 +1,103 @@
-<div class="container">
-  <h1>Past Events</h1>
-
-  <form hx-get="/events/archive" hx-target=".event-list" hx-swap="innerHTML" hx-indicator="#loading"
-    style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
-    <input type="text" name="category" placeholder="Filter by category"
-      style="padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc;" />
-
-  <button
-    type="submit"
-    class="mt-1 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-medium cursor-pointer hover:bg-blue-700"
-  >
-    Filter
-  </button>
-  </form>
-
-  <div id="loading" style="display:none; margin-bottom: 1rem;">
-    Loading...
+<section class="space-y-6">
+  <div class="rounded-2xl border border-slate-300 bg-gradient-to-b from-slate-100 to-white p-6 shadow-lg">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-slate-900">Past Events</h1>
+        <p class="mt-2 max-w-3xl text-slate-500">
+          Browse events that have already ended. Archived events are removed from the live board and collected here with a quieter visual treatment.
+        </p>
+      </div>
+      <div class="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm">
+        <span class="h-2 w-2 rounded-full bg-slate-400"></span>
+        Archive view
+      </div>
+    </div>
   </div>
 
+  <section
+    class="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg"
+    x-data="{
+      category: '',
+      hasActiveFilters() {
+        return this.category.trim() !== '';
+      },
+      clearFilters() {
+        this.category = '';
+        this.$nextTick(() => this.$refs.filterForm.requestSubmit());
+      }
+    }"
+  >
+    <form
+      x-ref="filterForm"
+      method="get"
+      action="/events/archive"
+      class="space-y-4"
+      hx-get="/events/archive"
+      hx-target="#archiveList"
+      hx-swap="innerHTML"
+      hx-trigger="submit, input delay:400ms from:input"
+      hx-indicator="#loading"
+    >
+      <input type="hidden" name="category" :value="category.trim()" />
+
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div class="w-full max-w-xl space-y-2">
+          <label for="archive-category" class="text-sm font-medium text-slate-700">
+            Search archive by category
+          </label>
+
+          <div class="relative">
+            <input
+              id="archive-category"
+              x-model="category"
+              type="text"
+              placeholder="e.g. music, arts, volunteer"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-11 text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+            />
+
+            <button
+              type="button"
+              x-show="hasActiveFilters()"
+              x-transition
+              @click="clearFilters()"
+              aria-label="Clear category filter"
+              class="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-slate-300 text-xs font-bold text-slate-600 transition hover:bg-slate-400 hover:text-white"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            @click="clearFilters()"
+            class="min-w-[7.75rem] rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition duration-150 hover:border-slate-400 hover:text-slate-900"
+            :class="hasActiveFilters() ? 'visible translate-y-0 opacity-100' : 'pointer-events-none invisible translate-y-1 opacity-0'"
+          >
+            Clear filter
+          </button>
+
+          <button
+            type="submit"
+            class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+          >
+            Apply filter
+          </button>
+        </div>
+      </div>
+    </form>
+  </section>
+
   <% if (pageError) { %>
-    <div class="error-box">
-      <p><%= pageError %></p>
-    </div>
+    <%- include("partials/error", { message: pageError }) %>
   <% } %>
 
-  <%- include("partials/archive-list", { events }) %>
-</div>
+  <div id="loading" class="htmx-indicator rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+    Updating archive...
+  </div>
+
+  <div id="archiveList">
+    <%- include("partials/archive-list", { events }) %>
+  </div>
+</section>
