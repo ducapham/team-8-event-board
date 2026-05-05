@@ -1,60 +1,142 @@
 <%# Feature 13 — Event Comments partial (rendered with layout: false for HTMX) %>
-<section id="comments-section" class="mt-8">
-  <h2 class="text-lg font-semibold text-slate-800 mb-4">Comments</h2>
+<%
+  const MAX_COMMENT_LENGTH = 500;
 
-  <%# Comment list %>
+  // Quick relative-time formatter: "just now" / "5m ago" / "3h ago" / "2d ago".
+  // Falls back to a locale string for older entries.
+  function relTime(value) {
+    const d = value instanceof Date ? value : new Date(value);
+    const diff = Date.now() - d.getTime();
+    if (diff < 60_000)        return "just now";
+    if (diff < 3_600_000)     return Math.floor(diff / 60_000) + "m ago";
+    if (diff < 86_400_000)    return Math.floor(diff / 3_600_000) + "h ago";
+    if (diff < 604_800_000)   return Math.floor(diff / 86_400_000) + "d ago";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  function initials(name) {
+    return (name || "?").trim().split(/\s+/).map(p => p[0]).slice(0, 2).join("").toUpperCase();
+  }
+%>
+<section id="comments-section" class="mt-8">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg sm:text-xl font-semibold text-slate-900">
+      Comments
+      <span class="ml-2 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 align-middle">
+        <%= comments.length %>
+      </span>
+    </h2>
+  </div>
+
+  <%# Comment list — each comment is its own Alpine island so it animates in
+       on render. `shown` flips from false → true on $nextTick which triggers
+       the x-transition:enter animation. %>
   <div id="comment-list" class="space-y-3 mb-6">
     <% if (comments.length === 0) { %>
-      <p class="text-sm text-slate-500 italic">No comments yet. Be the first to comment!</p>
+      <p class="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-6 text-center text-sm italic text-slate-500">
+        No comments yet. Be the first to comment!
+      </p>
     <% } else { %>
       <% comments.forEach(function(comment) { %>
-        <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-sm font-semibold text-slate-800"><%= comment.authorName %></span>
-            <span class="text-xs text-slate-400"><%= comment.createdAt.toLocaleString() %></span>
+        <article
+          x-data="{ shown: false }"
+          x-init="$nextTick(() => shown = true)"
+          x-show="shown"
+          x-transition:enter="transition ease-out duration-300"
+          x-transition:enter-start="opacity-0 -translate-y-2"
+          x-transition:enter-end="opacity-100 translate-y-0"
+          x-cloak
+          class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-slate-300"
+        >
+          <div class="flex items-start gap-3">
+            <div class="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700 ring-1 ring-blue-100">
+              <%= initials(comment.authorName) %>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span class="text-sm font-semibold text-slate-900"><%= comment.authorName %></span>
+                <span class="text-xs text-slate-400" title="<%= comment.createdAt.toLocaleString() %>">
+                  <%= relTime(comment.createdAt) %>
+                </span>
+              </div>
+              <p class="mt-1 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap break-words">
+                <%= comment.content %>
+              </p>
+              <%# Delete button — submitted via HTMX, swaps the whole section back %>
+              <form
+                hx-post="/events/<%= eventId %>/comments/<%= comment.id %>/delete"
+                hx-target="#comments-section"
+                hx-swap="outerHTML"
+                class="mt-2 m-0"
+              >
+                <button
+                  type="submit"
+                  class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3 w-3">
+                    <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75H3a.75.75 0 0 0 0 1.5h.387l.851 11.07A2.75 2.75 0 0 0 6.98 19h6.04a2.75 2.75 0 0 0 2.742-2.68l.851-11.07H17a.75.75 0 0 0 0-1.5h-3a2.75 2.75 0 0 0-2.75-2.75h-2.5ZM7.5 3.75c0-.69.56-1.25 1.25-1.25h2.5c.69 0 1.25.56 1.25 1.25H7.5Z" clip-rule="evenodd"/>
+                  </svg>
+                  Delete
+                </button>
+              </form>
+            </div>
           </div>
-          <p class="text-sm text-slate-700"><%= comment.content %></p>
-          <%# Delete button — submitted via HTMX, swaps back the updated list %>
-          <form
-            hx-post="/events/<%= eventId %>/comments/<%= comment.id %>/delete"
-            hx-target="#comments-section"
-            hx-swap="outerHTML"
-            class="mt-2 m-0"
-          >
-            <button
-              type="submit"
-              class="text-xs text-red-500 hover:text-red-700 underline bg-transparent border-0 cursor-pointer p-0"
-            >
-              Delete
-            </button>
-          </form>
-        </div>
+        </article>
       <% }); %>
     <% } %>
   </div>
 
-  <%# Post a new comment form (HTMX) %>
+  <%# Post a new comment — Alpine handles the live character count %>
   <form
+    x-data="{ count: 0, max: <%= MAX_COMMENT_LENGTH %> }"
     hx-post="/events/<%= eventId %>/comments"
     hx-target="#comments-section"
     hx-swap="outerHTML"
-    class="flex flex-col gap-2"
+    @htmx:after-request="count = 0"
+    class="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5"
   >
-    <label for="comment-content" class="text-sm font-medium text-slate-700">
+    <label for="comment-content" class="block text-sm font-semibold text-slate-700 mb-2">
       Add a comment
     </label>
     <textarea
       id="comment-content"
       name="content"
       rows="3"
+      :maxlength="max"
       placeholder="Write your comment here…"
-      class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+      x-on:input="count = $event.target.value.length"
+      class="block w-full resize-none rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
     ></textarea>
-    <button
-      type="submit"
-      class="self-end rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-    >
-      Post Comment
-    </button>
+
+    <div class="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <%# Live character counter — turns amber near the limit, rose at it %>
+      <p
+        class="text-xs tabular-nums transition-colors"
+        :class="
+          count >= max ? 'text-rose-600 font-semibold'
+          : count > max * 0.9 ? 'text-amber-600'
+          : 'text-slate-400'
+        "
+      >
+        <span x-text="count"></span>
+        <span aria-hidden="true">/</span>
+        <span x-text="max"></span>
+        <span class="ml-1">characters</span>
+      </p>
+
+      <button
+        type="submit"
+        :disabled="count === 0"
+        :class="count === 0
+          ? 'opacity-50 cursor-not-allowed'
+          : 'hover:bg-blue-700 active:scale-95'"
+        class="inline-flex items-center justify-center gap-1.5 self-end rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4">
+          <path d="M3.105 3.105a.75.75 0 0 1 .815-.165l13.5 5.625a.75.75 0 0 1 0 1.385l-13.5 5.625a.75.75 0 0 1-1.04-.84l1.46-5.078H10a.75.75 0 0 0 0-1.5H4.34L2.88 3.945a.75.75 0 0 1 .225-.84Z"/>
+        </svg>
+        Post Comment
+      </button>
+    </div>
   </form>
 </section>
