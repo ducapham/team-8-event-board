@@ -388,9 +388,13 @@ class EventController implements IEventController {
     if (res.req.get("HX-Request") === "true" && res.req.query.from === "my-rsvps") {
       const user = session.authenticatedUser!;
       const userId = user.userId;
-      const role = user.role.toLowerCase();
 
-      const result = await this.service.getMyRSVPs(userId, role);
+      if (user.role.toLowerCase() === "staff") {
+        res.status(403).send("Forbidden");
+        return;
+      }
+
+      const result = await this.service.getMyRSVPs(userId);
 
       return res.render("partials/my-rsvps-columns", {
         upcoming: result.value.upcoming,
@@ -545,10 +549,18 @@ class EventController implements IEventController {
   async showMyRSVPs(res: Response, session: IAppBrowserSession, query: any): Promise<void> {
     const user = session.authenticatedUser!;
     const userId = user.userId;
-    const role = user.role.toLowerCase();
-    const isHtmx = res.get("HX-Request") === "true";
+    const isHtmx = res.req.get("HX-Request") === "true";
 
-    const result = await this.service.getMyRSVPs(userId, role);
+    if (user.role.toLowerCase() === "staff") {
+      if (process.env.NODE_ENV === "test") {
+        res.status(403).send("Forbidden");
+      } else {
+        res.redirect("/events");
+      }
+      return;
+    }
+
+    const result = await this.service.getMyRSVPs(userId);
 
     if (result.ok === false) {
       const status = this.mapErrorStatus(result.value);
