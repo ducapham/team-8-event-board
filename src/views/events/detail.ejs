@@ -1,4 +1,9 @@
-<div id="event-detail-shell" class="space-y-6">
+<div
+  id="event-detail-shell"
+  class="space-y-6"
+  x-data="{ badgeAnimated: false }"
+  x-init="$nextTick(() => { badgeAnimated = true; setTimeout(() => { badgeAnimated = false; }, 550); })"
+>
   <div class="max-w-3xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
     <% if (pageError) { %>
       <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -19,7 +24,12 @@
           </p>
           <h1 class="text-3xl font-bold text-slate-900"><%= event.title %></h1>
         </div>
-        <%- include("partials/status-badge", { status: event.status }) %>
+        <div
+          class="origin-top-right transition duration-300"
+          :class="badgeAnimated ? 'scale-110 -rotate-2 shadow-lg' : 'scale-100 rotate-0 shadow-none'"
+        >
+          <%- include("partials/status-badge", { status: event.status }) %>
+        </div>
       </div>
 
       <div class="space-y-4 text-slate-700">
