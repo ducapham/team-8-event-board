@@ -12,6 +12,7 @@
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
+    "prisma:setup": "npm run prisma:generate && npm run prisma:migrate:deploy && npm run prisma:seed",
     "clean": "rimraf dist node_modules"
   },
   "keywords": [],
