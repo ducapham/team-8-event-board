@@ -394,7 +394,7 @@ class InMemoryEventRepository implements IEventRepository {
     return this.summary
       .filter((s) => s.User.id === userId)
       .map((s) => ({
-        event: s.Event,
+        event: this.events.find((event) => event.id === s.Event.id) ?? s.Event,
         status: s.status,
         date: s.date,
         time: s.time,

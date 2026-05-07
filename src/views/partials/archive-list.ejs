@@ -1,33 +1,42 @@
-<div class="event-list">
+<% const dateTimeFormat = { dateStyle: "medium", timeStyle: "short" }; %>
+
+<div class="space-y-4">
   <% if (events.length === 0) { %>
-    <p class="empty">No past events.</p>
+    <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500 shadow-sm">
+      No archived events match this filter.
+    </div>
   <% } else { %>
     <% events.forEach(event => { %>
-      <div class="event-card">
-        
-        <div class="event-header">
-          <h2><%= event.title %></h2>
-          <span class="badge">Past</span>
-        </div>
+      <article class="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-5 opacity-90 shadow-lg transition hover:opacity-100">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div class="space-y-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="text-xl font-semibold text-slate-900"><%= event.title %></h2>
+              <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Archived
+              </span>
+              <span class="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
+                <%= event.category %>
+              </span>
+            </div>
 
-        <div class="event-details">
-          <p><strong>Location:</strong> <%= event.location %></p>
-          <p><strong>Category:</strong> <%= event.category %></p>
-        </div>
+            <div class="grid grid-cols-1 gap-3 text-sm text-slate-500 sm:grid-cols-2">
+              <p><strong class="text-slate-700">Location:</strong> <%= event.location %></p>
+              <p><strong class="text-slate-700">Started:</strong> <%= new Date(event.startDatetime).toLocaleString(undefined, dateTimeFormat) %></p>
+              <p class="sm:col-span-2"><strong class="text-slate-700">Ended:</strong> <%= new Date(event.endDatetime).toLocaleString(undefined, dateTimeFormat) %></p>
+            </div>
+          </div>
 
-        <div class="event-time">
-          <p>
-            <%= event.startDatetime.toLocaleString() %> 
-            → 
-            <%= event.endDatetime.toLocaleString() %>
-          </p>
+          <div class="shrink-0">
+            <a
+              href="/events/<%= event.id %>"
+              class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+            >
+              View details
+            </a>
+          </div>
         </div>
-
-        <div class="event-actions">
-          <a href="/events/<%= event.id %>" class="btn">View Details</a>
-        </div>
-
-      </div>
+      </article>
     <% }) %>
   <% } %>
 </div>

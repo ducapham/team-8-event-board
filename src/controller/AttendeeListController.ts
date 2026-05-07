@@ -48,12 +48,15 @@ class AttendeeListController implements IAttendeeListController {
 
     // HTMX requests get the bare partial so it can be swapped inline; direct
     // browser navigation to /events/:id/attendees still renders with the
-    // full layout so the page stands on its own.
+    // full layout so the page stands on its own. The `compact` flag tells
+    // the template to drop its redundant title block when nested inside
+    // the event detail page (which already shows the event title).
     const renderOptions: Record<string, unknown> = {
       eventId,
       eventTitle,
       grouped: result.value,
       session: browserSession,
+      compact: isHtmx,
     };
     if (isHtmx) {
       renderOptions.layout = false;

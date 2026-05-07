@@ -69,7 +69,7 @@ export interface EventDetailResult {
 }
 
 export interface IEventService {
-  getMyRSVPs(userId: string, role: string): Promise<Result<any, EventError>>;
+  getMyRSVPs(userId: string): Promise<Result<any, EventError>>;
   Toggle(eventId: number, userId: string): Promise<Result<string, EventError>>;
   Search(query: string, viewerId?: string): Promise<Result<IEvent[], EventError>>;
   createEvent(input: CreateEventInput, organizerId: string): Promise<Result<IEvent, CreateEventError>>;
@@ -519,17 +519,8 @@ class EventService implements IEventService {
   }
 
   // Feature 7 — My RSVPs Dashboard (Giorgi)
-  async getMyRSVPs(userId: string, role: string): Promise<Result<any, EventError>> {
+  async getMyRSVPs(userId: string): Promise<Result<any, EventError>> {
     try {
-      if (role?.toLowerCase() !== "admin") {
-        const isOrganizer = await this.repo.isUserOrganizer(userId);
-
-        if (isOrganizer) {
-          return Err(new ForbiddenError("Organizers cannot access RSVP dashboard"));
-        }
-      }
-
-
       const data = await this.repo.getRSVPsByUser(userId);
 
       const now = new Date();
@@ -537,6 +528,7 @@ class EventService implements IEventService {
       const upcoming = data
         .filter((d: any) =>
           (d.status === "Registered" || d.status === "Waitlisted") &&
+          d.event.status !== "cancelled" &&
           new Date(d.event.endDatetime) > now
         )
         .sort((a: any, b: any) =>
@@ -546,6 +538,7 @@ class EventService implements IEventService {
 
       const past = data
         .filter((d: any) =>
+          d.event.status === "cancelled" ||
           new Date(d.event.endDatetime) <= now ||
           d.status === "Cancelled"
         )

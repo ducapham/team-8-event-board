@@ -1,15 +1,24 @@
 <%
   const badgeClasses =
     status === 'draft'
-      ? 'bg-amber-100 text-amber-800 border-amber-200'
+      ? 'bg-amber-50 text-amber-900 border-amber-300 ring-amber-100'
       : status === 'published'
-        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+        ? 'bg-emerald-50 text-emerald-900 border-emerald-300 ring-emerald-100'
         : status === 'cancelled'
-          ? 'bg-red-100 text-red-800 border-red-200'
-          : 'bg-slate-100 text-slate-700 border-slate-200';
+          ? 'bg-rose-50 text-rose-900 border-rose-300 ring-rose-100'
+          : 'bg-slate-100 text-slate-700 border-slate-200 ring-slate-100';
+  const dotClasses =
+    status === 'draft'
+      ? 'bg-amber-500'
+      : status === 'published'
+        ? 'bg-emerald-500'
+        : status === 'cancelled'
+          ? 'bg-rose-500'
+          : 'bg-slate-400';
   const badgeLabel = status.charAt(0).toUpperCase() + status.slice(1);
 %>
 
-<span class="inline-flex items-center justify-center px-3 py-1.5 rounded-full border text-sm font-semibold <%= badgeClasses %>">
+<span class="inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-semibold shadow-sm ring-4 transition duration-300 <%= badgeClasses %>">
+  <span class="h-2.5 w-2.5 rounded-full <%= dotClasses %>"></span>
   <%= badgeLabel %>
 </span>
