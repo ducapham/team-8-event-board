@@ -528,6 +528,7 @@ class EventService implements IEventService {
       const upcoming = data
         .filter((d: any) =>
           (d.status === "Registered" || d.status === "Waitlisted") &&
+          d.event.status !== "cancelled" &&
           new Date(d.event.endDatetime) > now
         )
         .sort((a: any, b: any) =>
@@ -537,6 +538,7 @@ class EventService implements IEventService {
 
       const past = data
         .filter((d: any) =>
+          d.event.status === "cancelled" ||
           new Date(d.event.endDatetime) <= now ||
           d.status === "Cancelled"
         )
