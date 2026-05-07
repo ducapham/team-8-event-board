@@ -1,10 +1,30 @@
 <section class="mb-5 p-6 border border-slate-200 rounded-2xl bg-gradient-to-b from-white to-slate-50 shadow-lg">
   <div class="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-    <div>
+    <div class="space-y-4">
       <h1 class="text-3xl font-bold text-slate-900 mb-3">Local Event Board</h1>
       <p class="text-slate-500">
         Browse upcoming published events and narrow the board by category, timeframe, or search term.
       </p>
+
+      <% if (session?.authenticatedUser) { %>
+        <div class="flex flex-wrap gap-3">
+          <a
+            href="/events/archive"
+            class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold shadow-lg no-underline hover:bg-slate-50 transition"
+          >
+            View Archive
+          </a>
+
+          <% if (session.authenticatedUser.role !== "staff") { %>
+            <a
+              href="/my-rsvps"
+              class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-blue-600 text-white font-semibold shadow-lg no-underline hover:bg-blue-700 transition"
+            >
+              My RSVPs
+            </a>
+          <% } %>
+        </div>
+      <% } %>
     </div>
     <script>
       document.addEventListener('alpine:init', () => {
